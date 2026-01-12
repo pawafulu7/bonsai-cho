@@ -18,6 +18,13 @@ const getValidatedEnv = (): Env => {
     TURSO_AUTH_TOKEN: import.meta.env.TURSO_AUTH_TOKEN,
     PUBLIC_APP_URL: import.meta.env.PUBLIC_APP_URL,
     NODE_ENV: import.meta.env.MODE,
+    // OAuth
+    GITHUB_CLIENT_ID: import.meta.env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: import.meta.env.GITHUB_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: import.meta.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: import.meta.env.GOOGLE_CLIENT_SECRET,
+    // Session
+    SESSION_SECRET: import.meta.env.SESSION_SECRET,
   };
 
   const validated = parseEnv(rawEnv);

@@ -3,12 +3,21 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { timing } from "hono/timing";
 
+import authRoutes from "./routes/auth";
+
 // Create Hono app with environment bindings type
 type Bindings = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL?: string;
+  PUBLIC_APP_URL: string;
   NODE_ENV?: string;
+  // OAuth
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  // Session
+  SESSION_SECRET: string;
 };
 
 // biome-ignore lint/complexity/noBannedTypes: Hono requires this type signature for future variable additions
@@ -43,7 +52,8 @@ app.use("*", async (c, next) => {
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+    credentials: true,
   });
 
   return corsMiddleware(c, next);
@@ -60,6 +70,9 @@ app.get("/health", (c) => {
 
 // API version prefix
 const api = app.basePath("/api");
+
+// Auth routes
+api.route("/auth", authRoutes);
 
 // Species endpoints - Phase 4 implementation
 api.get("/species", async (c) => {

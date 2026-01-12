@@ -1,6 +1,22 @@
 ---
 // Header component - Static Astro component
-// Navigation links and branding
+// Navigation links and branding with auth state
+
+import { AuthHeader } from "@/components/auth/AuthHeader";
+
+interface Props {
+  user?: {
+    id: string;
+    email: string;
+    name: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  csrfToken?: string | null;
+}
+
+const { user = null, csrfToken = null } = Astro.props;
+const currentPath = Astro.url.pathname;
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -69,13 +85,13 @@
           </svg>
         </button>
 
-        <!-- Login button (placeholder for Phase 2) -->
-        <a
-          href="/login"
-          class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          Sign In
-        </a>
+        <!-- Auth state -->
+        <AuthHeader
+          client:load
+          user={user}
+          csrfToken={csrfToken || undefined}
+          loginReturnTo={currentPath}
+        />
       </div>
     </div>
   </div>

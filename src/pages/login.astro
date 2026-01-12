@@ -1,0 +1,55 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { LoginButtons } from "@/components/auth/LoginButton";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+// Get return URL from query params
+const returnTo = Astro.url.searchParams.get("returnTo") || "/";
+const error = Astro.url.searchParams.get("error");
+
+// Error messages
+const errorMessages: Record<string, string> = {
+  missing_params: "認証パラメータが不足しています。もう一度お試しください。",
+  state_mismatch: "セッションが無効です。もう一度お試しください。",
+  invalid_state: "認証セッションが期限切れです。もう一度お試しください。",
+  email_required: "メールアドレスへのアクセスが必要です。",
+  token_validation_failed: "認証トークンの検証に失敗しました。",
+  callback_failed: "認証処理中にエラーが発生しました。",
+  access_denied: "アクセスが拒否されました。",
+};
+
+const errorMessage = error ? errorMessages[error] || "認証エラーが発生しました。" : null;
+---
+
+<BaseLayout title="ログイン" description="Bonsai-Choにログイン">
+  <main id="main-content" class="min-h-screen flex items-center justify-center px-4 py-12 bg-background">
+    <Card className="w-full max-w-md">
+      <CardHeader className="text-center">
+        <div class="mx-auto mb-4 h-12 w-12 text-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+        <CardTitle className="text-2xl font-serif">Bonsai-Cho</CardTitle>
+        <CardDescription>
+          アカウントでログインして、盆栽の管理を始めましょう
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {errorMessage && (
+          <div class="mb-4 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        )}
+        <LoginButtons client:load returnTo={returnTo} />
+        <p class="mt-6 text-center text-xs text-muted-foreground">
+          ログインすることで、
+          <a href="/terms" class="underline underline-offset-4 hover:text-primary">利用規約</a>
+          および
+          <a href="/privacy" class="underline underline-offset-4 hover:text-primary">プライバシーポリシー</a>
+          に同意したものとみなされます。
+        </p>
+      </CardContent>
+    </Card>
+  </main>
+</BaseLayout>

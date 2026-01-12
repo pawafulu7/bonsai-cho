@@ -32,7 +32,7 @@ app.use("*", async (c, next) => {
   const appUrl = c.env?.PUBLIC_APP_URL || "http://localhost:4321";
   const nodeEnv = c.env?.NODE_ENV || "development";
 
-  // In development, allow localhost origins
+  // Parse allowed origins for safer comparison
   const allowedOrigins =
     nodeEnv === "development"
       ? [
@@ -42,12 +42,36 @@ app.use("*", async (c, next) => {
         ]
       : [appUrl];
 
+  // Pre-parse allowed origins for comparison
+  const parsedAllowedOrigins = allowedOrigins
+    .map((o) => {
+      try {
+        const url = new URL(o);
+        return `${url.protocol}//${url.host}`;
+      } catch {
+        return null;
+      }
+    })
+    .filter((o): o is string => o !== null);
+
   const corsMiddleware = cors({
     origin: (origin) => {
       // Allow requests with no origin (same-origin, curl, etc.)
       if (!origin) return appUrl;
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) return origin;
+
+      // Parse and normalize the incoming origin for safer comparison
+      try {
+        const parsedOrigin = new URL(origin);
+        const normalizedOrigin = `${parsedOrigin.protocol}//${parsedOrigin.host}`;
+
+        // Check if normalized origin is in allowed list
+        if (parsedAllowedOrigins.includes(normalizedOrigin)) {
+          return normalizedOrigin;
+        }
+      } catch {
+        // Invalid origin URL, reject
+      }
+
       // Reject other origins
       return null;
     },

@@ -48,6 +48,15 @@ export const ALL: APIRoute = async (context) => {
 
   // Get the route parameter and construct the API path
   const route = context.params.route || "";
+
+  // Prevent path traversal attacks
+  if (route.includes("..") || route.includes("//") || route.includes("\\")) {
+    return new Response(JSON.stringify({ error: "Invalid route" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const apiPath = `/api/${route}`;
 
   // Create new URL with the API path

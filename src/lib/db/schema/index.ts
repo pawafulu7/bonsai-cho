@@ -1,17 +1,18 @@
-// Bonsai and related
+// User and Session
 
+// OAuth Authentication
 export type {
   NewOAuthAccount,
   NewOAuthState,
   OAuthAccount,
   OAuthState,
 } from "./auth";
-// OAuth Authentication
 export {
   oauthAccounts,
   oauthAccountsRelations,
   oauthStates,
 } from "./auth";
+// Bonsai and related
 export {
   bonsai,
   bonsaiImages,
@@ -26,5 +27,4 @@ export {
 } from "./bonsai";
 // Master Data
 export { species, styles } from "./masters";
-// User and Session
 export { sessions, sessionsRelations, users, usersRelations } from "./users";

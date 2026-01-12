@@ -5,7 +5,7 @@
  * Cookie contains the raw token, DB stores SHA-256 hash.
  */
 
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type * as schema from "../db/schema";
 import { sessions, users } from "../db/schema";
@@ -100,7 +100,7 @@ export async function validateSession(
         eq(sessions.id, hashedToken),
         gt(sessions.expiresAt, now),
         // Exclude soft-deleted users
-        eq(users.deletedAt, null as unknown as string)
+        isNull(users.deletedAt)
       )
     )
     .limit(1);
@@ -266,5 +266,5 @@ export function createSessionCookie(token: string): string {
  * Create a Set-Cookie header value to clear the session
  */
 export function clearSessionCookie(): string {
-  return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+  return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=${SESSION_COOKIE_OPTIONS.sameSite}`;
 }

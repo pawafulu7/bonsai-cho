@@ -173,11 +173,13 @@ describe("crypto", () => {
     });
 
     it("should handle Unicode characters", async () => {
-      const hash = await sha256Hash("Hello World");
-      const hashJp = await sha256Hash("Hello World");
+      const hashJp = await sha256Hash("こんにちは世界");
+      const hashEmoji = await sha256Hash("Hello 🌍");
 
       expect(hashJp.length).toBe(43);
-      expect(hash).toBe(hashJp);
+      expect(hashEmoji.length).toBe(43);
+      // Different inputs should produce different hashes
+      expect(hashJp).not.toBe(hashEmoji);
     });
   });
 

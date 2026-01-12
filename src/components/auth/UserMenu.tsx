@@ -33,12 +33,14 @@ export function UserMenu({ user, csrfToken }: UserMenuProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const displayName = user.displayName || user.name;
-  const initials = displayName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const initials =
+    displayName
+      .split(" ")
+      .filter((n) => n.length > 0)
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2) || "?";
 
   const handleLogout = async () => {
     setIsLoggingOut(true);

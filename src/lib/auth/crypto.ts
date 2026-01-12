@@ -7,9 +7,17 @@
 
 /**
  * Convert Uint8Array to base64url string
+ * Uses chunked processing to avoid call stack overflow for large arrays
  */
 export function base64urlEncode(data: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...data));
+  // Process in chunks to avoid call stack overflow with spread operator
+  const CHUNK_SIZE = 8192;
+  let binary = "";
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.subarray(i, Math.min(i + CHUNK_SIZE, data.length));
+    binary += String.fromCharCode(...chunk);
+  }
+  const base64 = btoa(binary);
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 

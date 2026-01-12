@@ -34,6 +34,8 @@ import {
   clearCsrfCookie,
   createCsrfCookie,
   generateCsrfToken,
+  parseCsrfCookie,
+  validateCsrfToken,
 } from "@/lib/auth/csrf";
 import {
   clearSessionCookie,
@@ -87,7 +89,7 @@ auth.use("*", async (c, next) => {
  */
 auth.get("/login/github", async (c) => {
   const db = c.get("db");
-  const returnTo = c.req.query("returnTo") || "/";
+  const returnTo = validateReturnTo(c.req.query("returnTo"));
 
   const env: OAuthEnv = {
     GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
@@ -142,7 +144,7 @@ auth.get("/login/github", async (c) => {
  */
 auth.get("/login/google", async (c) => {
   const db = c.get("db");
-  const returnTo = c.req.query("returnTo") || "/";
+  const returnTo = validateReturnTo(c.req.query("returnTo"));
 
   const env: OAuthEnv = {
     GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
@@ -242,7 +244,7 @@ auth.get("/callback/github", async (c) => {
     }
 
     const oauthState = storedState[0];
-    const returnTo = oauthState.returnTo || "/";
+    const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
     await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
@@ -352,7 +354,7 @@ auth.get("/callback/google", async (c) => {
     }
 
     const oauthState = storedState[0];
-    const returnTo = oauthState.returnTo || "/";
+    const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
     await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
@@ -433,6 +435,14 @@ auth.get("/callback/google", async (c) => {
 auth.post("/logout", async (c) => {
   const db = c.get("db");
   const cookieHeader = c.req.header("Cookie") || "";
+
+  // CSRF validation
+  const csrfCookie = parseCsrfCookie(cookieHeader);
+  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+    return c.json({ error: "Invalid CSRF token" }, 403);
+  }
+
   const sessionToken = parseSessionCookie(cookieHeader);
 
   if (sessionToken) {
@@ -500,6 +510,14 @@ auth.delete("/sessions/:id", async (c) => {
   const db = c.get("db");
   const sessionId = c.req.param("id");
   const cookieHeader = c.req.header("Cookie") || "";
+
+  // CSRF validation
+  const csrfCookie = parseCsrfCookie(cookieHeader);
+  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+    return c.json({ error: "Invalid CSRF token" }, 403);
+  }
+
   const sessionToken = parseSessionCookie(cookieHeader);
 
   if (!sessionToken) {
@@ -538,7 +556,35 @@ function parseCookie(cookieHeader: string, name: string): string | null {
 }
 
 /**
+ * Validate returnTo URL to prevent open redirect attacks
+ * Only allows relative paths starting with /
+ */
+function validateReturnTo(returnTo: string | undefined): string {
+  if (!returnTo) {
+    return "/";
+  }
+
+  // Must start with / and not contain // (protocol-relative URL)
+  // Also reject paths starting with /\ which some browsers normalize
+  if (
+    !returnTo.startsWith("/") ||
+    returnTo.startsWith("//") ||
+    returnTo.startsWith("/\\")
+  ) {
+    return "/";
+  }
+
+  // Reject URLs with protocol schemes (e.g., javascript:, data:, etc.)
+  if (/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(returnTo)) {
+    return "/";
+  }
+
+  return returnTo;
+}
+
+/**
  * Find existing user or create new one
+ * Uses transaction to ensure data consistency
  */
 async function findOrCreateUser(
   db: Database,
@@ -551,7 +597,7 @@ async function findOrCreateUser(
     avatarUrl?: string | null;
   }
 ): Promise<{ user: typeof schema.users.$inferSelect; isNew: boolean }> {
-  // First, check if OAuth account exists
+  // First, check if OAuth account exists (outside transaction for read-only check)
   const existingOAuth = await db
     .select()
     .from(schema.oauthAccounts)
@@ -575,57 +621,60 @@ async function findOrCreateUser(
     return { user: existingOAuth[0].users, isNew: false };
   }
 
-  // Check if user exists by email
-  const existingUser = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.email, data.email))
-    .limit(1);
+  // Use transaction for user creation/linking to ensure consistency
+  return await db.transaction(async (tx) => {
+    // Check if user exists by email
+    const existingUser = await tx
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, data.email))
+      .limit(1);
 
-  if (existingUser.length > 0) {
-    // Link OAuth account to existing user
-    await db.insert(schema.oauthAccounts).values({
+    if (existingUser.length > 0) {
+      // Link OAuth account to existing user
+      await tx.insert(schema.oauthAccounts).values({
+        id: generateId(),
+        userId: existingUser[0].id,
+        provider: data.provider,
+        providerAccountId: data.providerAccountId,
+        email: data.email,
+        emailVerified: data.emailVerified,
+      });
+
+      return { user: existingUser[0], isNew: false };
+    }
+
+    // Create new user
+    const userId = generateId();
+    const now = new Date().toISOString();
+
+    await tx.insert(schema.users).values({
+      id: userId,
+      email: data.email,
+      name: data.name,
+      avatarUrl: data.avatarUrl || null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Create OAuth account
+    await tx.insert(schema.oauthAccounts).values({
       id: generateId(),
-      userId: existingUser[0].id,
+      userId,
       provider: data.provider,
       providerAccountId: data.providerAccountId,
       email: data.email,
       emailVerified: data.emailVerified,
     });
 
-    return { user: existingUser[0], isNew: false };
-  }
+    const newUser = await tx
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1);
 
-  // Create new user
-  const userId = generateId();
-  const now = new Date().toISOString();
-
-  await db.insert(schema.users).values({
-    id: userId,
-    email: data.email,
-    name: data.name,
-    avatarUrl: data.avatarUrl || null,
-    createdAt: now,
-    updatedAt: now,
+    return { user: newUser[0], isNew: true };
   });
-
-  // Create OAuth account
-  await db.insert(schema.oauthAccounts).values({
-    id: generateId(),
-    userId,
-    provider: data.provider,
-    providerAccountId: data.providerAccountId,
-    email: data.email,
-    emailVerified: data.emailVerified,
-  });
-
-  const newUser = await db
-    .select()
-    .from(schema.users)
-    .where(eq(schema.users.id, userId))
-    .limit(1);
-
-  return { user: newUser[0], isNew: true };
 }
 
 export default auth;

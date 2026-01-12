@@ -1,0 +1,82 @@
+---
+// Header component - Static Astro component
+// Navigation links and branding
+---
+
+<header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+  <div class="container-app">
+    <div class="flex h-16 items-center justify-between">
+      <!-- Logo / Brand -->
+      <a href="/" class="flex items-center gap-2 font-serif text-xl font-semibold text-primary transition-colors hover:text-primary/80">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-6 w-6"
+          aria-hidden="true"
+        >
+          <path d="M12 22v-7" />
+          <path d="M12 15c-3.5 0-7-3-7-7a7 7 0 0 1 14 0c0 4-3.5 7-7 7Z" />
+          <path d="M12 8a2 2 0 0 0 0-4 2 2 0 0 0 0 4Z" />
+        </svg>
+        <span>Bonsai-Cho</span>
+      </a>
+
+      <!-- Navigation -->
+      <nav class="hidden items-center gap-6 md:flex" aria-label="Main navigation">
+        <a
+          href="/timeline"
+          class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Timeline
+        </a>
+        <a
+          href="/explore"
+          class="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          Explore
+        </a>
+      </nav>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-4">
+        <!-- Mobile menu button -->
+        <button
+          type="button"
+          class="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="mobile-menu"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-6 w-6"
+            aria-hidden="true"
+          >
+            <line x1="4" x2="20" y1="12" y2="12" />
+            <line x1="4" x2="20" y1="6" y2="6" />
+            <line x1="4" x2="20" y1="18" y2="18" />
+          </svg>
+        </button>
+
+        <!-- Login button (placeholder for Phase 2) -->
+        <a
+          href="/login"
+          class="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          Sign In
+        </a>
+      </div>
+    </div>
+  </div>
+</header>

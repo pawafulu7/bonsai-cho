@@ -1,0 +1,13 @@
+name = "bonsai-cho"
+compatibility_date = "2026-01-12"
+pages_build_output_dir = "./dist"
+
+# Development environment
+[env.development]
+[env.development.vars]
+PUBLIC_APP_URL = "http://localhost:4321"
+
+# Production environment
+[env.production]
+[env.production.vars]
+# Set via dashboard or wrangler secret

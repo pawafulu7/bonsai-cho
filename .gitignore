@@ -29,3 +29,6 @@ pnpm-debug.log*
 # Claude Code
 .claude/
 CLAUDE.md
+
+# Serena MCP local memories
+.serena/

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { parseEnv } from "../env";
 import { createDb } from "./client";
 import { species, styles } from "./schema";
 
@@ -132,13 +133,8 @@ const stylesData = [
 ];
 
 async function seed() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url) {
-    console.error("TURSO_DATABASE_URL is required");
-    process.exit(1);
-  }
+  const env = parseEnv(process.env);
+  const { TURSO_DATABASE_URL: url, TURSO_AUTH_TOKEN: authToken } = env;
 
   console.log("Seeding database...");
 

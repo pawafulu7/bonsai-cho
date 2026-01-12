@@ -1,8 +1,9 @@
 // @ts-check
-import { defineConfig } from "astro/config";
-import react from "@astrojs/react";
+
 import cloudflare from "@astrojs/cloudflare";
+import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
@@ -17,11 +18,12 @@ export default defineConfig({
     plugins: [tailwindcss()],
     resolve: {
       // Cloudflare Workers compatibility
-      alias: process.env.NODE_ENV === "production"
-        ? {
-            "react-dom/server": "react-dom/server.edge",
-          }
-        : {},
+      alias:
+        process.env.NODE_ENV === "production"
+          ? {
+              "react-dom/server": "react-dom/server.edge",
+            }
+          : {},
     },
   },
 });

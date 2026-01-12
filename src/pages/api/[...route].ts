@@ -1,18 +1,10 @@
 import type { APIRoute } from "astro";
-import { parseEnv } from "@/lib/env";
+import { type Env, parseEnv } from "@/lib/env";
 import app from "@/server/app";
-
-// Environment bindings type for Hono
-type HonoEnv = {
-  TURSO_DATABASE_URL: string;
-  TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL: string;
-  NODE_ENV: string;
-};
 
 // Validate and get environment variables
 // Re-validates on each call to avoid stale cache issues in development
-const getValidatedEnv = (): HonoEnv => {
+const getValidatedEnv = (): Env => {
   const rawEnv = {
     TURSO_DATABASE_URL: import.meta.env.TURSO_DATABASE_URL,
     TURSO_AUTH_TOKEN: import.meta.env.TURSO_AUTH_TOKEN,
@@ -20,14 +12,7 @@ const getValidatedEnv = (): HonoEnv => {
     NODE_ENV: import.meta.env.MODE,
   };
 
-  const parsed = parseEnv(rawEnv);
-
-  return {
-    TURSO_DATABASE_URL: parsed.TURSO_DATABASE_URL,
-    TURSO_AUTH_TOKEN: parsed.TURSO_AUTH_TOKEN,
-    PUBLIC_APP_URL: parsed.PUBLIC_APP_URL,
-    NODE_ENV: parsed.NODE_ENV,
-  };
+  return parseEnv(rawEnv);
 };
 
 // Fail fast: validate on module load in production

@@ -1,5 +1,3 @@
-// User and Session
-
 // Bonsai and related
 export {
   bonsai,
@@ -16,4 +14,6 @@ export {
 
 // Master Data
 export { species, styles } from "./masters";
+
+// User and Session
 export { sessions, sessionsRelations, users, usersRelations } from "./users";

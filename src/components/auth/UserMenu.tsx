@@ -31,6 +31,7 @@ interface UserMenuProps {
 
 export function UserMenu({ user, csrfToken }: UserMenuProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   const displayName = user.displayName || user.name;
   const initials =
@@ -44,6 +45,7 @@ export function UserMenu({ user, csrfToken }: UserMenuProps) {
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
+    setLogoutError(null);
     try {
       const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -62,10 +64,12 @@ export function UserMenu({ user, csrfToken }: UserMenuProps) {
         window.location.href = "/";
       } else {
         console.error("Logout failed");
+        setLogoutError("ログアウトに失敗しました。再度お試しください。");
         setIsLoggingOut(false);
       }
     } catch (error) {
       console.error("Logout error:", error);
+      setLogoutError("ネットワークエラーが発生しました。");
       setIsLoggingOut(false);
     }
   };
@@ -129,6 +133,11 @@ export function UserMenu({ user, csrfToken }: UserMenuProps) {
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        {logoutError && (
+          <div className="px-2 py-1.5 text-xs text-destructive">
+            {logoutError}
+          </div>
+        )}
         <DropdownMenuItem
           onClick={handleLogout}
           disabled={isLoggingOut}

@@ -5,10 +5,9 @@
  * Uses Arctic library for OAuth handling.
  */
 
-import { createClient } from "@libsql/client";
 import { and, eq, gt } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/libsql";
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   createGitHubAuthUrl,
   createGitHubProvider,
@@ -41,14 +40,25 @@ import {
   clearSessionCookie,
   createSession,
   createSessionCookie,
-  type Database,
   deleteSessionById,
   getUserSessions,
   invalidateSession,
   parseSessionCookie,
   validateSession,
 } from "@/lib/auth/session";
+import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
+
+// Query parameter schemas
+const loginQuerySchema = z.object({
+  returnTo: z.string().optional(),
+});
+
+const callbackQuerySchema = z.object({
+  code: z.string().min(1).optional(),
+  state: z.string().min(1).optional(),
+  error: z.string().optional(),
+});
 
 // Types
 type Bindings = {
@@ -72,14 +82,10 @@ const STATE_EXPIRES_MINUTES = 10;
 // Create Hono app for auth routes
 const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-// Database middleware
+// Database middleware - uses cached connection via getDb()
 auth.use("*", async (c, next) => {
-  const client = createClient({
-    url: c.env.TURSO_DATABASE_URL,
-    authToken: c.env.TURSO_AUTH_TOKEN,
-  });
-  const db = drizzle(client, { schema });
-  c.set("db", db as unknown as Database);
+  const db = getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
+  c.set("db", db);
   await next();
 });
 
@@ -89,7 +95,15 @@ auth.use("*", async (c, next) => {
  */
 auth.get("/login/github", async (c) => {
   const db = c.get("db");
-  const returnTo = validateReturnTo(c.req.query("returnTo"));
+
+  // Validate query parameters
+  const query = loginQuerySchema.safeParse({
+    returnTo: c.req.query("returnTo"),
+  });
+  if (!query.success) {
+    return c.json({ error: "Invalid query parameters" }, 400);
+  }
+  const returnTo = validateReturnTo(query.data.returnTo);
 
   const env: OAuthEnv = {
     GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
@@ -144,7 +158,15 @@ auth.get("/login/github", async (c) => {
  */
 auth.get("/login/google", async (c) => {
   const db = c.get("db");
-  const returnTo = validateReturnTo(c.req.query("returnTo"));
+
+  // Validate query parameters
+  const query = loginQuerySchema.safeParse({
+    returnTo: c.req.query("returnTo"),
+  });
+  if (!query.success) {
+    return c.json({ error: "Invalid query parameters" }, 400);
+  }
+  const returnTo = validateReturnTo(query.data.returnTo);
 
   const env: OAuthEnv = {
     GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
@@ -203,9 +225,18 @@ auth.get("/login/google", async (c) => {
  */
 auth.get("/callback/github", async (c) => {
   const db = c.get("db");
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const error = c.req.query("error");
+
+  // Validate query parameters
+  const query = callbackQuerySchema.safeParse({
+    code: c.req.query("code"),
+    state: c.req.query("state"),
+    error: c.req.query("error"),
+  });
+  if (!query.success) {
+    return c.redirect("/login?error=invalid_params");
+  }
+
+  const { code, state, error } = query.data;
 
   // Handle OAuth errors
   if (error) {
@@ -313,9 +344,18 @@ auth.get("/callback/github", async (c) => {
  */
 auth.get("/callback/google", async (c) => {
   const db = c.get("db");
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const error = c.req.query("error");
+
+  // Validate query parameters
+  const query = callbackQuerySchema.safeParse({
+    code: c.req.query("code"),
+    state: c.req.query("state"),
+    error: c.req.query("error"),
+  });
+  if (!query.success) {
+    return c.redirect("/login?error=invalid_params");
+  }
+
+  const { code, state, error } = query.data;
 
   // Handle OAuth errors
   if (error) {

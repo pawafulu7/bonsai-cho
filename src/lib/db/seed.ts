@@ -138,11 +138,15 @@ async function seed() {
     process.exit(1);
   }
 
-  const db = await createDb(url, authToken);
-
   console.log("Seeding database...");
 
+  let client: Awaited<ReturnType<typeof createDb>>["client"] | undefined;
+
   try {
+    const result = await createDb(url, authToken);
+    const db = result.db;
+    client = result.client;
+
     await db.transaction(async (tx) => {
       // Seed species (batch upsert)
       console.log("Seeding species...");
@@ -180,7 +184,12 @@ async function seed() {
   } catch (error) {
     console.error("Error seeding database:", error);
     process.exit(1);
+  } finally {
+    client?.close();
   }
 }
 
-seed();
+seed().catch((error) => {
+  console.error("Seed failed:", error);
+  process.exit(1);
+});

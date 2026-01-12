@@ -17,8 +17,8 @@ export const createDb = async (url: string, authToken?: string) => {
     throw error;
   }
 
-  return drizzle(client, { schema });
+  return { db: drizzle(client, { schema }), client };
 };
 
 // Type export for use in API routes
-export type Database = Awaited<ReturnType<typeof createDb>>;
+export type Database = Awaited<ReturnType<typeof createDb>>["db"];

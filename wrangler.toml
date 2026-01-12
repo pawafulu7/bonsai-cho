@@ -1,0 +1,17 @@
+name = "bonsai-cho"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "./dist"
+
+# Environment variables (set in Cloudflare dashboard for production)
+[vars]
+PUBLIC_APP_URL = "http://localhost:4321"
+
+# Development environment
+[env.development]
+[env.development.vars]
+PUBLIC_APP_URL = "http://localhost:4321"
+
+# Production environment
+[env.production]
+[env.production.vars]
+# Set via dashboard or wrangler secret

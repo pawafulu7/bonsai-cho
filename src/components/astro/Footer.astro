@@ -1,0 +1,48 @@
+---
+// Footer component - Static Astro component
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="border-t border-border bg-muted/30">
+  <div class="container-app py-8">
+    <div class="flex flex-col items-center justify-between gap-4 md:flex-row">
+      <!-- Brand -->
+      <div class="flex items-center gap-2 font-serif text-lg font-semibold text-primary">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-5 w-5"
+          aria-hidden="true"
+        >
+          <path d="M12 22v-7" />
+          <path d="M12 15c-3.5 0-7-3-7-7a7 7 0 0 1 14 0c0 4-3.5 7-7 7Z" />
+          <path d="M12 8a2 2 0 0 0 0-4 2 2 0 0 0 0 4Z" />
+        </svg>
+        <span>Bonsai-Cho</span>
+      </div>
+
+      <!-- Links -->
+      <nav class="flex items-center gap-6 text-sm text-muted-foreground" aria-label="Footer navigation">
+        <a href="/about" class="transition-colors hover:text-foreground">
+          About
+        </a>
+        <a href="/terms" class="transition-colors hover:text-foreground">
+          Terms
+        </a>
+        <a href="/privacy" class="transition-colors hover:text-foreground">
+          Privacy
+        </a>
+      </nav>
+
+      <!-- Copyright -->
+      <p class="text-sm text-muted-foreground">
+        &copy; {currentYear} Bonsai-Cho. All rights reserved.
+      </p>
+    </div>
+  </div>
+</footer>

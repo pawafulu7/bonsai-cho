@@ -5,42 +5,48 @@
  * Uses Arctic library for OAuth handling.
  */
 
-import { Hono } from "hono";
-import { eq, and, gt } from "drizzle-orm";
 import { createClient } from "@libsql/client";
+import { and, eq, gt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
-
-import * as schema from "@/lib/db/schema";
-import { generateId, generateState, generateCodeVerifier, generateNonce, encrypt, decrypt } from "@/lib/auth/crypto";
+import { Hono } from "hono";
 import {
-  createGitHubProvider,
-  createGoogleProvider,
   createGitHubAuthUrl,
+  createGitHubProvider,
   createGoogleAuthUrl,
+  createGoogleProvider,
+  decodeGoogleIdToken,
+  getGitHubEmail,
+  getGitHubUser,
+  type OAuthEnv,
   validateGitHubCode,
   validateGoogleCode,
-  getGitHubUser,
-  getGitHubEmail,
-  decodeGoogleIdToken,
   validateGoogleIdTokenClaims,
-  type OAuthEnv,
 } from "@/lib/auth/arctic";
 import {
-  createSession,
-  validateSession,
-  invalidateSession,
-  getUserSessions,
-  deleteSessionById,
-  parseSessionCookie,
-  createSessionCookie,
-  clearSessionCookie,
-  type Database,
-} from "@/lib/auth/session";
+  decrypt,
+  encrypt,
+  generateCodeVerifier,
+  generateId,
+  generateNonce,
+  generateState,
+} from "@/lib/auth/crypto";
 import {
-  generateCsrfToken,
-  createCsrfCookie,
   clearCsrfCookie,
+  createCsrfCookie,
+  generateCsrfToken,
 } from "@/lib/auth/csrf";
+import {
+  clearSessionCookie,
+  createSession,
+  createSessionCookie,
+  type Database,
+  deleteSessionById,
+  getUserSessions,
+  invalidateSession,
+  parseSessionCookie,
+  validateSession,
+} from "@/lib/auth/session";
+import * as schema from "@/lib/db/schema";
 
 // Types
 type Bindings = {
@@ -96,10 +102,15 @@ auth.get("/login/github", async (c) => {
   const codeVerifier = generateCodeVerifier();
 
   // Encrypt code_verifier before storing
-  const encryptedCodeVerifier = await encrypt(codeVerifier, c.env.SESSION_SECRET);
+  const encryptedCodeVerifier = await encrypt(
+    codeVerifier,
+    c.env.SESSION_SECRET
+  );
 
   // Store state in database
-  const expiresAt = new Date(Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000
+  ).toISOString();
   await db.insert(schema.oauthStates).values({
     id: state,
     codeVerifier: encryptedCodeVerifier,
@@ -113,7 +124,10 @@ auth.get("/login/github", async (c) => {
 
   // Set state cookie for additional verification
   const headers = new Headers();
-  headers.append("Set-Cookie", `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+  headers.append(
+    "Set-Cookie",
+    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+  );
   headers.append("Location", url.toString());
 
   return new Response(null, {
@@ -144,10 +158,15 @@ auth.get("/login/google", async (c) => {
   const nonce = generateNonce();
 
   // Encrypt code_verifier before storing
-  const encryptedCodeVerifier = await encrypt(codeVerifier, c.env.SESSION_SECRET);
+  const encryptedCodeVerifier = await encrypt(
+    codeVerifier,
+    c.env.SESSION_SECRET
+  );
 
   // Store state in database
-  const expiresAt = new Date(Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000
+  ).toISOString();
   await db.insert(schema.oauthStates).values({
     id: state,
     codeVerifier: encryptedCodeVerifier,
@@ -164,7 +183,10 @@ auth.get("/login/google", async (c) => {
 
   // Set state cookie for additional verification
   const headers = new Headers();
-  headers.append("Set-Cookie", `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`);
+  headers.append(
+    "Set-Cookie",
+    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+  );
   headers.append("Location", url.toString());
 
   return new Response(null, {
@@ -267,7 +289,10 @@ auth.get("/callback/github", async (c) => {
     const headers = new Headers();
     headers.append("Set-Cookie", createSessionCookie(token));
     headers.append("Set-Cookie", createCsrfCookie(csrfToken));
-    headers.append("Set-Cookie", "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+    headers.append(
+      "Set-Cookie",
+      "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    );
     headers.append("Location", returnTo);
 
     return new Response(null, {
@@ -333,7 +358,10 @@ auth.get("/callback/google", async (c) => {
     await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
 
     // Decrypt code_verifier
-    const codeVerifier = await decrypt(oauthState.codeVerifier, c.env.SESSION_SECRET);
+    const codeVerifier = await decrypt(
+      oauthState.codeVerifier,
+      c.env.SESSION_SECRET
+    );
 
     // Exchange code for tokens
     const env: OAuthEnv = {
@@ -382,7 +410,10 @@ auth.get("/callback/google", async (c) => {
     const headers = new Headers();
     headers.append("Set-Cookie", createSessionCookie(token));
     headers.append("Set-Cookie", createCsrfCookie(csrfToken));
-    headers.append("Set-Cookie", "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+    headers.append(
+      "Set-Cookie",
+      "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    );
     headers.append("Location", returnTo);
 
     return new Response(null, {

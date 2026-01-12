@@ -64,7 +64,9 @@ export function generateNonce(): string {
 /**
  * Generate a PKCE code challenge from a code verifier using S256 method
  */
-export async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+export async function generateCodeChallenge(
+  codeVerifier: string
+): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(codeVerifier);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -85,10 +87,7 @@ export async function sha256Hash(input: string): Promise<string> {
 /**
  * Derive an encryption key from a secret using HKDF
  */
-async function deriveKey(
-  secret: string,
-  salt: Uint8Array
-): Promise<CryptoKey> {
+async function deriveKey(secret: string, salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -133,9 +132,7 @@ export async function encrypt(
   );
 
   // Combine: salt (16) + iv (12) + ciphertext
-  const result = new Uint8Array(
-    salt.length + iv.length + encrypted.byteLength
-  );
+  const result = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
   result.set(salt, 0);
   result.set(iv, salt.length);
   result.set(new Uint8Array(encrypted), salt.length + iv.length);
@@ -160,9 +157,18 @@ export async function decrypt(
   const key = await deriveKey(secret, salt);
 
   const decrypted = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: iv.buffer.slice(iv.byteOffset, iv.byteOffset + iv.byteLength) as ArrayBuffer },
+    {
+      name: "AES-GCM",
+      iv: iv.buffer.slice(
+        iv.byteOffset,
+        iv.byteOffset + iv.byteLength
+      ) as ArrayBuffer,
+    },
     key,
-    encrypted.buffer.slice(encrypted.byteOffset, encrypted.byteOffset + encrypted.byteLength) as ArrayBuffer
+    encrypted.buffer.slice(
+      encrypted.byteOffset,
+      encrypted.byteOffset + encrypted.byteLength
+    ) as ArrayBuffer
   );
 
   return new TextDecoder().decode(decrypted);

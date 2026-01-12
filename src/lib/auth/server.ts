@@ -4,12 +4,16 @@
  * Used to get the current user in Astro components and API routes.
  */
 
-import type { AstroGlobal } from "astro";
 import { createClient } from "@libsql/client";
+import type { AstroGlobal } from "astro";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@/lib/db/schema";
-import { validateSession, parseSessionCookie, type SessionUser } from "./session";
 import { parseCsrfCookie } from "./csrf";
+import {
+  parseSessionCookie,
+  type SessionUser,
+  validateSession,
+} from "./session";
 
 /**
  * Get the current authenticated user from the request

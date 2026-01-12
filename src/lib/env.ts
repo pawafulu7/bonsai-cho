@@ -17,7 +17,9 @@ const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
 
   // Session encryption secret (32+ characters recommended)
-  SESSION_SECRET: z.string().min(32, "SESSION_SECRET must be at least 32 characters"),
+  SESSION_SECRET: z
+    .string()
+    .min(32, "SESSION_SECRET must be at least 32 characters"),
 
   // Node environment
   NODE_ENV: z

@@ -5,10 +5,10 @@
  * Cookie contains the raw token, DB stores SHA-256 hash.
  */
 
-import { eq, and, gt, lt } from "drizzle-orm";
+import { and, eq, gt, lt } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { sessions, users } from "../db/schema";
 import type * as schema from "../db/schema";
+import { sessions, users } from "../db/schema";
 import { generateSessionId, sha256Hash } from "./crypto";
 
 // Session configuration

@@ -28,9 +28,7 @@ export const oauthAccounts = sqliteTable(
     emailVerified: integer("email_verified", { mode: "boolean" }).default(
       false
     ),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
     uniqueIndex("uq_oauth_provider_account").on(
@@ -67,9 +65,7 @@ export const oauthStates = sqliteTable(
     returnTo: text("return_to"), // Optional redirect after login
     nonce: text("nonce"), // For Google OIDC id_token verification
     expiresAt: text("expires_at").notNull(),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [index("idx_oauth_states_expires").on(table.expiresAt)]
 );

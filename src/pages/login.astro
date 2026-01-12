@@ -1,7 +1,13 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { LoginButtons } from "@/components/auth/LoginButton";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 // Get return URL from query params
 const returnTo = Astro.url.searchParams.get("returnTo") || "/";
@@ -18,7 +24,9 @@ const errorMessages: Record<string, string> = {
   access_denied: "アクセスが拒否されました。",
 };
 
-const errorMessage = error ? errorMessages[error] || "認証エラーが発生しました。" : null;
+const errorMessage = error
+  ? errorMessages[error] || "認証エラーが発生しました。"
+  : null;
 ---
 
 <BaseLayout title="ログイン" description="Bonsai-Choにログイン">

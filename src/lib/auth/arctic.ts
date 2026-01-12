@@ -123,9 +123,7 @@ export interface GitHubEmail {
 /**
  * Fetch GitHub user info
  */
-export async function getGitHubUser(
-  accessToken: string
-): Promise<GitHubUser> {
+export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
   const response = await fetch("https://api.github.com/user", {
     headers: {
       Authorization: `Bearer ${accessToken}`,

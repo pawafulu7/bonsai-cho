@@ -5,7 +5,7 @@ import { z } from "zod";
 const envSchema = z.object({
   // Turso Database (required)
   TURSO_DATABASE_URL: z.string().url(),
-  TURSO_AUTH_TOKEN: z.string(),
+  TURSO_AUTH_TOKEN: z.string().min(1, "TURSO_AUTH_TOKEN cannot be empty"),
 
   // App
   PUBLIC_APP_URL: z.string().url().default("http://localhost:4321"),

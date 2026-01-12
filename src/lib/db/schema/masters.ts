@@ -1,5 +1,5 @@
-import { sqliteTable, text, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
+import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Species (tree species)
 export const species = sqliteTable(
@@ -10,13 +10,9 @@ export const species = sqliteTable(
     nameEn: text("name_en"),
     nameScientific: text("name_scientific"),
     description: text("description"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
-  (table) => [
-    index("idx_species_name_en").on(table.nameEn),
-  ]
+  (table) => [index("idx_species_name_en").on(table.nameEn)]
 );
 
 // Styles (bonsai styles)
@@ -25,7 +21,5 @@ export const styles = sqliteTable("styles", {
   nameJa: text("name_ja").notNull().unique(),
   nameEn: text("name_en"),
   description: text("description"),
-  createdAt: text("created_at")
-    .notNull()
-    .default(sql`(datetime('now'))`),
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });

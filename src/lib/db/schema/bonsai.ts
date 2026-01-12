@@ -1,14 +1,14 @@
+import { relations, sql } from "drizzle-orm";
 import {
-  sqliteTable,
-  text,
+  index,
   integer,
   real,
-  index,
+  sqliteTable,
+  text,
   unique,
 } from "drizzle-orm/sqlite-core";
-import { sql, relations } from "drizzle-orm";
-import { users } from "./users";
 import { species, styles } from "./masters";
+import { users } from "./users";
 
 // Bonsai
 export const bonsai = sqliteTable(
@@ -34,12 +34,8 @@ export const bonsai = sqliteTable(
     isPublic: integer("is_public", { mode: "boolean" }).notNull().default(true),
     likeCount: integer("like_count").notNull().default(0),
     commentCount: integer("comment_count").notNull().default(0),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
-    updatedAt: text("updated_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     deletedAt: text("deleted_at"),
   },
   (table) => [
@@ -85,9 +81,7 @@ export const bonsaiImages = sqliteTable(
     isPrimary: integer("is_primary", { mode: "boolean" })
       .notNull()
       .default(false),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
     index("idx_bonsai_images_bonsai").on(table.bonsaiId),
@@ -123,9 +117,7 @@ export const careLogs = sqliteTable(
     description: text("description"),
     performedAt: text("performed_at").notNull(),
     imageUrl: text("image_url"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
     index("idx_care_logs_bonsai").on(table.bonsaiId),
@@ -148,13 +140,9 @@ export const tags = sqliteTable(
     id: text("id").primaryKey(),
     name: text("name").notNull().unique(),
     usageCount: integer("usage_count").notNull().default(0),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
-  (table) => [
-    index("idx_tags_usage").on(table.usageCount),
-  ]
+  (table) => [index("idx_tags_usage").on(table.usageCount)]
 );
 
 export const tagsRelations = relations(tags, ({ many }) => ({
@@ -172,9 +160,7 @@ export const bonsaiTags = sqliteTable(
     tagId: text("tag_id")
       .notNull()
       .references(() => tags.id, { onDelete: "cascade" }),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
     index("idx_bonsai_tags_bonsai").on(table.bonsaiId),

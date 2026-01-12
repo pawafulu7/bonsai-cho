@@ -1,31 +1,33 @@
 import type { APIRoute } from "astro";
-import app from "@/server/app";
 import { parseEnv } from "@/lib/env";
+import app from "@/server/app";
 
-// Validate environment variables at startup
-let validatedEnv: { TURSO_DATABASE_URL: string; TURSO_AUTH_TOKEN: string } | null = null;
+// Environment bindings type for Hono
+type HonoEnv = {
+  TURSO_DATABASE_URL: string;
+  TURSO_AUTH_TOKEN: string;
+  PUBLIC_APP_URL: string;
+  NODE_ENV: string;
+};
 
-const getValidatedEnv = () => {
-  if (!validatedEnv) {
-    const env = {
-      TURSO_DATABASE_URL: import.meta.env.TURSO_DATABASE_URL,
-      TURSO_AUTH_TOKEN: import.meta.env.TURSO_AUTH_TOKEN,
-      PUBLIC_APP_URL: import.meta.env.PUBLIC_APP_URL,
-      NODE_ENV: import.meta.env.MODE,
-    };
+// Validate and get environment variables
+// Re-validates on each call to avoid stale cache issues in development
+const getValidatedEnv = (): HonoEnv => {
+  const rawEnv = {
+    TURSO_DATABASE_URL: import.meta.env.TURSO_DATABASE_URL,
+    TURSO_AUTH_TOKEN: import.meta.env.TURSO_AUTH_TOKEN,
+    PUBLIC_APP_URL: import.meta.env.PUBLIC_APP_URL,
+    NODE_ENV: import.meta.env.MODE,
+  };
 
-    try {
-      const parsed = parseEnv(env);
-      validatedEnv = {
-        TURSO_DATABASE_URL: parsed.TURSO_DATABASE_URL,
-        TURSO_AUTH_TOKEN: parsed.TURSO_AUTH_TOKEN,
-      };
-    } catch (error) {
-      console.error("Environment validation failed:", error);
-      throw new Error("Required environment variables are not configured");
-    }
-  }
-  return validatedEnv;
+  const parsed = parseEnv(rawEnv);
+
+  return {
+    TURSO_DATABASE_URL: parsed.TURSO_DATABASE_URL,
+    TURSO_AUTH_TOKEN: parsed.TURSO_AUTH_TOKEN,
+    PUBLIC_APP_URL: parsed.PUBLIC_APP_URL,
+    NODE_ENV: parsed.NODE_ENV,
+  };
 };
 
 // Fail fast: validate on module load in production

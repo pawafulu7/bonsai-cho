@@ -81,13 +81,15 @@ const stylesData = [
     id: "style_shakan",
     nameJa: "Shakan",
     nameEn: "Slanting",
-    description: "Trunk grows at an angle, suggesting wind or environmental pressure.",
+    description:
+      "Trunk grows at an angle, suggesting wind or environmental pressure.",
   },
   {
     id: "style_kengai",
     nameJa: "Kengai",
     nameEn: "Cascade",
-    description: "Trunk cascades below the pot base, like a cliff-growing tree.",
+    description:
+      "Trunk cascades below the pot base, like a cliff-growing tree.",
   },
   {
     id: "style_han_kengai",

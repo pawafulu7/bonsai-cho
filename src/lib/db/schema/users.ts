@@ -1,6 +1,5 @@
-import { sqliteTable, text, index } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
+import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable(
   "users",
@@ -13,14 +12,10 @@ export const users = sqliteTable(
     bio: text("bio"),
     location: text("location"),
     website: text("website"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
     // Note: SQLite doesn't support auto-update timestamps.
     // Update paths must explicitly set updatedAt = new Date().toISOString()
-    updatedAt: text("updated_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     deletedAt: text("deleted_at"),
   },
   (table) => [
@@ -42,9 +37,7 @@ export const sessions = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     expiresAt: text("expires_at").notNull(),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
+    createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
     index("idx_sessions_user_id").on(table.userId),

@@ -160,7 +160,7 @@ async function seed() {
             description: sql.raw(`excluded.${species.description.name}`),
           },
         });
-      console.log(`  Inserted ${speciesData.length} species`);
+      console.log(`  Upserted ${speciesData.length} species`);
 
       // Seed styles (batch upsert)
       console.log("Seeding styles...");
@@ -175,7 +175,7 @@ async function seed() {
             description: sql.raw(`excluded.${styles.description.name}`),
           },
         });
-      console.log(`  Inserted ${stylesData.length} styles`);
+      console.log(`  Upserted ${stylesData.length} styles`);
     });
 
     console.log("Seeding complete!");

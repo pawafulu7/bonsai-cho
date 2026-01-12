@@ -2,9 +2,17 @@ import type { APIRoute } from "astro";
 import { type Env, parseEnv } from "@/lib/env";
 import app from "@/server/app";
 
+// Cache for validated environment (production only)
+let cachedEnv: Env | null = null;
+
 // Validate and get environment variables
-// Re-validates on each call to avoid stale cache issues in development
+// In production: caches result for performance (env vars don't change)
+// In development: re-validates on each call to detect config changes
 const getValidatedEnv = (): Env => {
+  if (import.meta.env.PROD && cachedEnv) {
+    return cachedEnv;
+  }
+
   const rawEnv = {
     TURSO_DATABASE_URL: import.meta.env.TURSO_DATABASE_URL,
     TURSO_AUTH_TOKEN: import.meta.env.TURSO_AUTH_TOKEN,
@@ -12,10 +20,16 @@ const getValidatedEnv = (): Env => {
     NODE_ENV: import.meta.env.MODE,
   };
 
-  return parseEnv(rawEnv);
+  const validated = parseEnv(rawEnv);
+
+  if (import.meta.env.PROD) {
+    cachedEnv = validated;
+  }
+
+  return validated;
 };
 
-// Fail fast: validate on module load in production
+// Fail fast: validate and cache on module load in production
 if (import.meta.env.PROD) {
   getValidatedEnv();
 }

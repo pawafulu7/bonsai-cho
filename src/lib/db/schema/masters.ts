@@ -20,16 +20,12 @@ export const species = sqliteTable(
 );
 
 // Styles (bonsai styles)
-export const styles = sqliteTable(
-  "styles",
-  {
-    id: text("id").primaryKey(),
-    nameJa: text("name_ja").notNull().unique(),
-    nameEn: text("name_en"),
-    description: text("description"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(datetime('now'))`),
-  },
-  (table) => []
-);
+export const styles = sqliteTable("styles", {
+  id: text("id").primaryKey(),
+  nameJa: text("name_ja").notNull().unique(),
+  nameEn: text("name_en"),
+  description: text("description"),
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(datetime('now'))`),
+});

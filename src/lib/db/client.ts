@@ -10,7 +10,12 @@ export const createDb = async (url: string, authToken?: string) => {
   });
 
   // Enable foreign keys for SQLite
-  await client.execute("PRAGMA foreign_keys = ON");
+  try {
+    await client.execute("PRAGMA foreign_keys = ON");
+  } catch (error) {
+    console.error("Failed to enable foreign keys:", error);
+    throw error;
+  }
 
   return drizzle(client, { schema });
 };

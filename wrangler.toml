@@ -2,10 +2,6 @@ name = "bonsai-cho"
 compatibility_date = "2026-01-12"
 pages_build_output_dir = "./dist"
 
-# Environment variables (set in Cloudflare dashboard for production)
-[vars]
-PUBLIC_APP_URL = "http://localhost:4321"
-
 # Development environment
 [env.development]
 [env.development.vars]

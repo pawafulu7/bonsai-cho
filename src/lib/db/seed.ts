@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { createDb } from "./client";
 import { species, styles } from "./schema";
 
@@ -143,39 +144,35 @@ async function seed() {
 
   try {
     await db.transaction(async (tx) => {
-      // Seed species (upsert)
+      // Seed species (batch upsert)
       console.log("Seeding species...");
-      for (const item of speciesData) {
-        await tx
-          .insert(species)
-          .values(item)
-          .onConflictDoUpdate({
-            target: species.id,
-            set: {
-              nameJa: item.nameJa,
-              nameEn: item.nameEn,
-              nameScientific: item.nameScientific,
-              description: item.description,
-            },
-          });
-      }
+      await tx
+        .insert(species)
+        .values(speciesData)
+        .onConflictDoUpdate({
+          target: species.id,
+          set: {
+            nameJa: sql.raw(`excluded.${species.nameJa.name}`),
+            nameEn: sql.raw(`excluded.${species.nameEn.name}`),
+            nameScientific: sql.raw(`excluded.${species.nameScientific.name}`),
+            description: sql.raw(`excluded.${species.description.name}`),
+          },
+        });
       console.log(`  Inserted ${speciesData.length} species`);
 
-      // Seed styles (upsert)
+      // Seed styles (batch upsert)
       console.log("Seeding styles...");
-      for (const item of stylesData) {
-        await tx
-          .insert(styles)
-          .values(item)
-          .onConflictDoUpdate({
-            target: styles.id,
-            set: {
-              nameJa: item.nameJa,
-              nameEn: item.nameEn,
-              description: item.description,
-            },
-          });
-      }
+      await tx
+        .insert(styles)
+        .values(stylesData)
+        .onConflictDoUpdate({
+          target: styles.id,
+          set: {
+            nameJa: sql.raw(`excluded.${styles.nameJa.name}`),
+            nameEn: sql.raw(`excluded.${styles.nameEn.name}`),
+            description: sql.raw(`excluded.${styles.description.name}`),
+          },
+        });
       console.log(`  Inserted ${stylesData.length} styles`);
     });
 

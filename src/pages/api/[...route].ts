@@ -28,6 +28,11 @@ const getValidatedEnv = () => {
   return validatedEnv;
 };
 
+// Fail fast: validate on module load in production
+if (import.meta.env.PROD) {
+  getValidatedEnv();
+}
+
 // Handle all API routes through Hono
 export const ALL: APIRoute = async (context) => {
   // Create a new Request with the correct URL path

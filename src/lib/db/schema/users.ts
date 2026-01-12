@@ -16,6 +16,8 @@ export const users = sqliteTable(
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
+    // Note: SQLite doesn't support auto-update timestamps.
+    // Update paths must explicitly set updatedAt = new Date().toISOString()
     updatedAt: text("updated_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -24,6 +26,7 @@ export const users = sqliteTable(
   (table) => [
     index("idx_users_name").on(table.name),
     index("idx_users_created_at").on(table.createdAt),
+    index("idx_users_deleted_at").on(table.deletedAt),
   ]
 );
 

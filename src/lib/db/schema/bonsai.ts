@@ -4,6 +4,7 @@ import {
   integer,
   real,
   index,
+  unique,
 } from "drizzle-orm/sqlite-core";
 import { sql, relations } from "drizzle-orm";
 import { users } from "./users";
@@ -152,7 +153,6 @@ export const tags = sqliteTable(
       .default(sql`(datetime('now'))`),
   },
   (table) => [
-    index("idx_tags_name").on(table.name),
     index("idx_tags_usage").on(table.usageCount),
   ]
 );
@@ -179,6 +179,7 @@ export const bonsaiTags = sqliteTable(
   (table) => [
     index("idx_bonsai_tags_bonsai").on(table.bonsaiId),
     index("idx_bonsai_tags_tag").on(table.tagId),
+    unique("uq_bonsai_tags").on(table.bonsaiId, table.tagId),
   ]
 );
 

@@ -1,10 +1,11 @@
 import { z } from "zod";
 
 // Environment variable schema
+// TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required for database operations
 const envSchema = z.object({
-  // Turso Database
-  TURSO_DATABASE_URL: z.string().url().optional(),
-  TURSO_AUTH_TOKEN: z.string().optional(),
+  // Turso Database (required)
+  TURSO_DATABASE_URL: z.string().url(),
+  TURSO_AUTH_TOKEN: z.string(),
 
   // App
   PUBLIC_APP_URL: z.string().url().default("http://localhost:4321"),

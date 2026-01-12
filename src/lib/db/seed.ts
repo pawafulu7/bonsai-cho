@@ -1,5 +1,4 @@
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createDb } from "./client";
 import { species, styles } from "./schema";
 
 // Species data
@@ -138,46 +137,47 @@ async function seed() {
     process.exit(1);
   }
 
-  const client = createClient({ url, authToken });
-  const db = drizzle(client);
+  const db = await createDb(url, authToken);
 
   console.log("Seeding database...");
 
   try {
-    // Seed species (upsert)
-    console.log("Seeding species...");
-    for (const item of speciesData) {
-      await db
-        .insert(species)
-        .values(item)
-        .onConflictDoUpdate({
-          target: species.id,
-          set: {
-            nameJa: item.nameJa,
-            nameEn: item.nameEn,
-            nameScientific: item.nameScientific,
-            description: item.description,
-          },
-        });
-    }
-    console.log(`  Inserted ${speciesData.length} species`);
+    await db.transaction(async (tx) => {
+      // Seed species (upsert)
+      console.log("Seeding species...");
+      for (const item of speciesData) {
+        await tx
+          .insert(species)
+          .values(item)
+          .onConflictDoUpdate({
+            target: species.id,
+            set: {
+              nameJa: item.nameJa,
+              nameEn: item.nameEn,
+              nameScientific: item.nameScientific,
+              description: item.description,
+            },
+          });
+      }
+      console.log(`  Inserted ${speciesData.length} species`);
 
-    // Seed styles (upsert)
-    console.log("Seeding styles...");
-    for (const item of stylesData) {
-      await db
-        .insert(styles)
-        .values(item)
-        .onConflictDoUpdate({
-          target: styles.id,
-          set: {
-            nameJa: item.nameJa,
-            nameEn: item.nameEn,
-            description: item.description,
-          },
-        });
-    }
-    console.log(`  Inserted ${stylesData.length} styles`);
+      // Seed styles (upsert)
+      console.log("Seeding styles...");
+      for (const item of stylesData) {
+        await tx
+          .insert(styles)
+          .values(item)
+          .onConflictDoUpdate({
+            target: styles.id,
+            set: {
+              nameJa: item.nameJa,
+              nameEn: item.nameEn,
+              description: item.description,
+            },
+          });
+      }
+      console.log(`  Inserted ${stylesData.length} styles`);
+    });
 
     console.log("Seeding complete!");
   } catch (error) {

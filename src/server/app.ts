@@ -79,11 +79,12 @@ app.notFound((c) => {
 
 // Error handler
 app.onError((err, c) => {
-  console.error(`Error: ${err.message}`);
+  console.error(`Error: ${err.message}`, err.stack);
+  const isDev = process.env.NODE_ENV !== "production";
   return c.json(
     {
       error: "Internal Server Error",
-      message: err.message,
+      message: isDev ? err.message : "An unexpected error occurred",
     },
     500
   );

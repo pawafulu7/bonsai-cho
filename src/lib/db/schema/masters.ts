@@ -15,7 +15,6 @@ export const species = sqliteTable(
       .default(sql`(datetime('now'))`),
   },
   (table) => [
-    index("idx_species_name_ja").on(table.nameJa),
     index("idx_species_name_en").on(table.nameEn),
   ]
 );
@@ -32,5 +31,5 @@ export const styles = sqliteTable(
       .notNull()
       .default(sql`(datetime('now'))`),
   },
-  (table) => [index("idx_styles_name_ja").on(table.nameJa)]
+  (table) => []
 );

@@ -22,7 +22,6 @@ export const users = sqliteTable(
     deletedAt: text("deleted_at"),
   },
   (table) => [
-    index("idx_users_email").on(table.email),
     index("idx_users_name").on(table.name),
     index("idx_users_created_at").on(table.createdAt),
   ]

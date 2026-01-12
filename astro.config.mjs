@@ -18,7 +18,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
     resolve: {
       // Cloudflare Workers compatibility
-      alias: import.meta.env?.PROD
+      alias: process.env.NODE_ENV === "production"
         ? {
             "react-dom/server": "react-dom/server.edge",
           }

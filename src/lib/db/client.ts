@@ -12,19 +12,19 @@ type DbConnection = {
   client: Client;
 };
 
-// Cache for DB connections keyed by URL (singleton per connection string)
-// This prevents creating new connections on every request
-const dbCache = new Map<string, DbConnection>();
-
-// Track which connections have been initialized with FK constraints
-const initializedConnections = new Set<string>();
+// Cache for DB connection promises keyed by URL (singleton per connection string)
+// Using Promise cache prevents race conditions during concurrent initialization
+const dbPromiseCache = new Map<string, Promise<DbConnection>>();
 
 /**
  * Get or create a cached database connection with foreign keys enabled
  *
- * Uses singleton pattern to reuse connections within the same process/isolate.
- * This is recommended by Turso to avoid connection overhead and socket exhaustion.
- * Foreign keys are enabled on first use to ensure data integrity.
+ * Uses singleton pattern with Promise caching to:
+ * - Reuse connections within the same process/isolate (recommended by Turso)
+ * - Prevent race conditions during concurrent initialization
+ * - Avoid connection overhead and socket exhaustion
+ *
+ * Foreign keys are enabled during connection creation to ensure data integrity.
  *
  * @param url - Turso database URL
  * @param authToken - Turso auth token
@@ -36,30 +36,38 @@ export const getDb = async (
 ): Promise<Database> => {
   const cacheKey = `${url}:${authToken ?? ""}`;
 
-  let cached = dbCache.get(cacheKey);
-  if (cached) {
-    // Ensure FK is enabled even for cached connections (first access)
-    if (!initializedConnections.has(cacheKey)) {
-      await cached.client.execute("PRAGMA foreign_keys = ON");
-      initializedConnections.add(cacheKey);
-    }
+  // Check for existing promise (handles concurrent calls)
+  const existingPromise = dbPromiseCache.get(cacheKey);
+  if (existingPromise) {
+    const cached = await existingPromise;
     return cached.db;
   }
 
-  const client = createClient({
-    url,
-    authToken,
-  });
+  // Create and cache the initialization promise immediately
+  // This ensures concurrent calls get the same promise
+  const initPromise = (async (): Promise<DbConnection> => {
+    const client = createClient({
+      url,
+      authToken,
+    });
 
-  // Enable foreign keys for SQLite
-  await client.execute("PRAGMA foreign_keys = ON");
-  initializedConnections.add(cacheKey);
+    // Enable foreign keys for SQLite
+    await client.execute("PRAGMA foreign_keys = ON");
 
-  const db = drizzle(client, { schema });
-  cached = { db, client };
-  dbCache.set(cacheKey, cached);
+    const db = drizzle(client, { schema });
+    return { db, client };
+  })();
 
-  return db;
+  dbPromiseCache.set(cacheKey, initPromise);
+
+  try {
+    const connection = await initPromise;
+    return connection.db;
+  } catch (error) {
+    // Remove failed promise from cache to allow retry
+    dbPromiseCache.delete(cacheKey);
+    throw error;
+  }
 };
 
 /**

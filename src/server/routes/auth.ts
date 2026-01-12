@@ -79,6 +79,14 @@ const callbackQuerySchema = z
     message: "Either error or both code and state are required",
   });
 
+// Session ID parameter schema (base64url encoded, 43 characters)
+const sessionIdParamSchema = z.object({
+  id: z
+    .string()
+    .min(1, "Session ID is required")
+    .regex(/^[A-Za-z0-9_-]+$/, "Invalid session ID format"),
+});
+
 // Types
 type Bindings = {
   TURSO_DATABASE_URL: string;
@@ -571,7 +579,14 @@ auth.get("/sessions", async (c) => {
  */
 auth.delete("/sessions/:id", async (c) => {
   const db = c.get("db");
-  const sessionId = c.req.param("id");
+
+  // Validate session ID parameter
+  const paramResult = sessionIdParamSchema.safeParse({ id: c.req.param("id") });
+  if (!paramResult.success) {
+    return c.json({ error: "Invalid session ID" }, 400);
+  }
+  const { id: sessionId } = paramResult.data;
+
   const cookieHeader = c.req.header("Cookie") || "";
 
   // CSRF validation

@@ -51,14 +51,33 @@ import * as schema from "@/lib/db/schema";
 
 // Query parameter schemas
 const loginQuerySchema = z.object({
-  returnTo: z.string().optional(),
+  returnTo: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val) return true;
+        // Must start with / and not be protocol-relative or contain traversal
+        return (
+          val.startsWith("/") &&
+          !val.startsWith("//") &&
+          !val.startsWith("/\\") &&
+          !val.includes("..")
+        );
+      },
+      { message: "Invalid returnTo path" }
+    ),
 });
 
-const callbackQuerySchema = z.object({
-  code: z.string().min(1).optional(),
-  state: z.string().min(1).optional(),
-  error: z.string().optional(),
-});
+const callbackQuerySchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    state: z.string().min(1).optional(),
+    error: z.string().optional(),
+  })
+  .refine((data) => data.error || (data.code && data.state), {
+    message: "Either error or both code and state are required",
+  });
 
 // Types
 type Bindings = {
@@ -84,7 +103,7 @@ const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // Database middleware - uses cached connection via getDb()
 auth.use("*", async (c, next) => {
-  const db = getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
+  const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
   c.set("db", db);
   await next();
 });
@@ -244,14 +263,14 @@ auth.get("/callback/github", async (c) => {
     return c.redirect(`/login?error=${encodeURIComponent(error)}`);
   }
 
-  if (!code || !state) {
-    return c.redirect("/login?error=missing_params");
-  }
+  // Schema ensures code and state exist when error is absent
+  const authCode = code as string;
+  const authState = state as string;
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, "oauth_state");
-  if (stateCookie !== state) {
+  if (stateCookie !== authState) {
     return c.redirect("/login?error=state_mismatch");
   }
 
@@ -263,7 +282,7 @@ auth.get("/callback/github", async (c) => {
       .from(schema.oauthStates)
       .where(
         and(
-          eq(schema.oauthStates.id, state),
+          eq(schema.oauthStates.id, authState),
           eq(schema.oauthStates.provider, "github"),
           gt(schema.oauthStates.expiresAt, now)
         )
@@ -278,7 +297,9 @@ auth.get("/callback/github", async (c) => {
     const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
-    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
+    await db
+      .delete(schema.oauthStates)
+      .where(eq(schema.oauthStates.id, authState));
 
     // Decrypt code_verifier (not used for GitHub but stored for consistency)
     // const codeVerifier = await decrypt(oauthState.codeVerifier, c.env.SESSION_SECRET);
@@ -292,7 +313,7 @@ auth.get("/callback/github", async (c) => {
       PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
     };
     const provider = createGitHubProvider(env);
-    const tokens = await validateGitHubCode(provider, code);
+    const tokens = await validateGitHubCode(provider, authCode);
 
     // Get user info
     const githubUser = await getGitHubUser(tokens.accessToken());
@@ -363,14 +384,14 @@ auth.get("/callback/google", async (c) => {
     return c.redirect(`/login?error=${encodeURIComponent(error)}`);
   }
 
-  if (!code || !state) {
-    return c.redirect("/login?error=missing_params");
-  }
+  // Schema ensures code and state exist when error is absent
+  const authCode = code as string;
+  const authState = state as string;
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, "oauth_state");
-  if (stateCookie !== state) {
+  if (stateCookie !== authState) {
     return c.redirect("/login?error=state_mismatch");
   }
 
@@ -382,7 +403,7 @@ auth.get("/callback/google", async (c) => {
       .from(schema.oauthStates)
       .where(
         and(
-          eq(schema.oauthStates.id, state),
+          eq(schema.oauthStates.id, authState),
           eq(schema.oauthStates.provider, "google"),
           gt(schema.oauthStates.expiresAt, now)
         )
@@ -397,7 +418,9 @@ auth.get("/callback/google", async (c) => {
     const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
-    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
+    await db
+      .delete(schema.oauthStates)
+      .where(eq(schema.oauthStates.id, authState));
 
     // Decrypt code_verifier
     const codeVerifier = await decrypt(
@@ -414,7 +437,7 @@ auth.get("/callback/google", async (c) => {
       PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
     };
     const provider = createGoogleProvider(env);
-    const tokens = await validateGoogleCode(provider, code, codeVerifier);
+    const tokens = await validateGoogleCode(provider, authCode, codeVerifier);
 
     // Decode and validate ID token
     const idToken = tokens.idToken();

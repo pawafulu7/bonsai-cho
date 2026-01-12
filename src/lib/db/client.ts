@@ -16,21 +16,33 @@ type DbConnection = {
 // This prevents creating new connections on every request
 const dbCache = new Map<string, DbConnection>();
 
+// Track which connections have been initialized with FK constraints
+const initializedConnections = new Set<string>();
+
 /**
- * Get or create a cached database connection
+ * Get or create a cached database connection with foreign keys enabled
  *
  * Uses singleton pattern to reuse connections within the same process/isolate.
  * This is recommended by Turso to avoid connection overhead and socket exhaustion.
+ * Foreign keys are enabled on first use to ensure data integrity.
  *
  * @param url - Turso database URL
  * @param authToken - Turso auth token
  * @returns Cached or newly created database connection
  */
-export const getDb = (url: string, authToken?: string): Database => {
+export const getDb = async (
+  url: string,
+  authToken?: string
+): Promise<Database> => {
   const cacheKey = `${url}:${authToken ?? ""}`;
 
   let cached = dbCache.get(cacheKey);
   if (cached) {
+    // Ensure FK is enabled even for cached connections (first access)
+    if (!initializedConnections.has(cacheKey)) {
+      await cached.client.execute("PRAGMA foreign_keys = ON");
+      initializedConnections.add(cacheKey);
+    }
     return cached.db;
   }
 
@@ -38,6 +50,10 @@ export const getDb = (url: string, authToken?: string): Database => {
     url,
     authToken,
   });
+
+  // Enable foreign keys for SQLite
+  await client.execute("PRAGMA foreign_keys = ON");
+  initializedConnections.add(cacheKey);
 
   const db = drizzle(client, { schema });
   cached = { db, client };

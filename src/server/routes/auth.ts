@@ -49,26 +49,33 @@ import {
 import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 
+/**
+ * Check if returnTo path is safe (shared validation logic)
+ * Prevents open redirect attacks by validating:
+ * - Must start with /
+ * - No protocol-relative URLs (//)
+ * - No backslash normalization tricks (/\)
+ * - No directory traversal (..)
+ * - No protocol schemes (/javascript:, /data:, etc.)
+ */
+function isValidReturnTo(val: string): boolean {
+  return (
+    val.startsWith("/") &&
+    !val.startsWith("//") &&
+    !val.startsWith("/\\") &&
+    !val.includes("..") &&
+    !/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(val)
+  );
+}
+
 // Query parameter schemas
 const loginQuerySchema = z.object({
   returnTo: z
     .string()
     .optional()
-    .refine(
-      (val) => {
-        if (!val) return true;
-        // Must start with / and not be protocol-relative or contain traversal
-        // Also reject protocol schemes (e.g., /javascript:, /data:)
-        return (
-          val.startsWith("/") &&
-          !val.startsWith("//") &&
-          !val.startsWith("/\\") &&
-          !val.includes("..") &&
-          !/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(val)
-        );
-      },
-      { message: "Invalid returnTo path" }
-    ),
+    .refine((val) => !val || isValidReturnTo(val), {
+      message: "Invalid returnTo path",
+    }),
 });
 
 const callbackQuerySchema = z
@@ -633,35 +640,20 @@ function parseCookie(cookieHeader: string, name: string): string | null {
 }
 
 /**
- * Validate returnTo URL to prevent open redirect attacks
- * Only allows relative paths starting with /
+ * Validate and sanitize returnTo URL
+ * Returns "/" for invalid paths, uses shared isValidReturnTo logic
  */
 function validateReturnTo(returnTo: string | undefined): string {
-  if (!returnTo) {
+  if (!returnTo || !isValidReturnTo(returnTo)) {
     return "/";
   }
-
-  // Must start with / and not contain // (protocol-relative URL)
-  // Also reject paths starting with /\ which some browsers normalize
-  if (
-    !returnTo.startsWith("/") ||
-    returnTo.startsWith("//") ||
-    returnTo.startsWith("/\\")
-  ) {
-    return "/";
-  }
-
-  // Reject URLs with protocol schemes (e.g., javascript:, data:, etc.)
-  if (/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(returnTo)) {
-    return "/";
-  }
-
   return returnTo;
 }
 
 /**
  * Find existing user or create new one
- * Uses transaction to ensure data consistency
+ * Uses transaction to ensure data consistency and prevent race conditions
+ * Email addresses are normalized to lowercase per RFC 5321
  */
 async function findOrCreateUser(
   db: Database,
@@ -674,37 +666,46 @@ async function findOrCreateUser(
     avatarUrl?: string | null;
   }
 ): Promise<{ user: typeof schema.users.$inferSelect; isNew: boolean }> {
-  // First, check if OAuth account exists (outside transaction for read-only check)
-  const existingOAuth = await db
-    .select()
-    .from(schema.oauthAccounts)
-    .innerJoin(schema.users, eq(schema.oauthAccounts.userId, schema.users.id))
-    .where(
-      and(
-        eq(schema.oauthAccounts.provider, data.provider),
-        eq(schema.oauthAccounts.providerAccountId, data.providerAccountId)
-      )
-    )
-    .limit(1);
+  // Normalize email to lowercase (RFC 5321: email addresses are case-insensitive)
+  const normalizedEmail = data.email.toLowerCase().trim();
 
-  if (existingOAuth.length > 0) {
-    // Update avatar if changed
-    if (data.avatarUrl && existingOAuth[0].users.avatarUrl !== data.avatarUrl) {
-      await db
-        .update(schema.users)
-        .set({ avatarUrl: data.avatarUrl, updatedAt: new Date().toISOString() })
-        .where(eq(schema.users.id, existingOAuth[0].users.id));
-    }
-    return { user: existingOAuth[0].users, isNew: false };
-  }
-
-  // Use transaction for user creation/linking to ensure consistency
+  // Use transaction for ALL checks and mutations to prevent race conditions
   return await db.transaction(async (tx) => {
-    // Check if user exists by email
+    // Check if OAuth account exists
+    const existingOAuth = await tx
+      .select()
+      .from(schema.oauthAccounts)
+      .innerJoin(schema.users, eq(schema.oauthAccounts.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.oauthAccounts.provider, data.provider),
+          eq(schema.oauthAccounts.providerAccountId, data.providerAccountId)
+        )
+      )
+      .limit(1);
+
+    if (existingOAuth.length > 0) {
+      // Update avatar if changed
+      if (
+        data.avatarUrl &&
+        existingOAuth[0].users.avatarUrl !== data.avatarUrl
+      ) {
+        await tx
+          .update(schema.users)
+          .set({
+            avatarUrl: data.avatarUrl,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(schema.users.id, existingOAuth[0].users.id));
+      }
+      return { user: existingOAuth[0].users, isNew: false };
+    }
+
+    // Check if user exists by email (case-insensitive via normalized email)
     const existingUser = await tx
       .select()
       .from(schema.users)
-      .where(eq(schema.users.email, data.email))
+      .where(eq(schema.users.email, normalizedEmail))
       .limit(1);
 
     if (existingUser.length > 0) {
@@ -714,20 +715,20 @@ async function findOrCreateUser(
         userId: existingUser[0].id,
         provider: data.provider,
         providerAccountId: data.providerAccountId,
-        email: data.email,
+        email: normalizedEmail,
         emailVerified: data.emailVerified,
       });
 
       return { user: existingUser[0], isNew: false };
     }
 
-    // Create new user
+    // Create new user with normalized email
     const userId = generateId();
     const now = new Date().toISOString();
 
     await tx.insert(schema.users).values({
       id: userId,
-      email: data.email,
+      email: normalizedEmail,
       name: data.name,
       avatarUrl: data.avatarUrl || null,
       createdAt: now,
@@ -740,7 +741,7 @@ async function findOrCreateUser(
       userId,
       provider: data.provider,
       providerAccountId: data.providerAccountId,
-      email: data.email,
+      email: normalizedEmail,
       emailVerified: data.emailVerified,
     });
 

@@ -175,7 +175,7 @@ auth.get("/login/github", async (c) => {
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+    `__Host-oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
   );
   headers.append("Location", url.toString());
 
@@ -242,7 +242,7 @@ auth.get("/login/google", async (c) => {
   const headers = new Headers();
   headers.append(
     "Set-Cookie",
-    `oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+    `__Host-oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
   );
   headers.append("Location", url.toString());
 
@@ -283,7 +283,7 @@ auth.get("/callback/github", async (c) => {
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
-  const stateCookie = parseCookie(cookieHeader, "oauth_state");
+  const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
   if (stateCookie !== authState) {
     return c.redirect("/login?error=state_mismatch");
   }
@@ -314,9 +314,6 @@ auth.get("/callback/github", async (c) => {
     await db
       .delete(schema.oauthStates)
       .where(eq(schema.oauthStates.id, authState));
-
-    // Decrypt code_verifier (not used for GitHub but stored for consistency)
-    // const codeVerifier = await decrypt(oauthState.codeVerifier, c.env.SESSION_SECRET);
 
     // Exchange code for tokens
     const env: OAuthEnv = {
@@ -359,7 +356,7 @@ auth.get("/callback/github", async (c) => {
     headers.append("Set-Cookie", createCsrfCookie(csrfToken));
     headers.append(
       "Set-Cookie",
-      "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+      "__Host-oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
     );
     headers.append("Location", returnTo);
 
@@ -404,7 +401,7 @@ auth.get("/callback/google", async (c) => {
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
-  const stateCookie = parseCookie(cookieHeader, "oauth_state");
+  const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
   if (stateCookie !== authState) {
     return c.redirect("/login?error=state_mismatch");
   }
@@ -491,7 +488,7 @@ auth.get("/callback/google", async (c) => {
     headers.append("Set-Cookie", createCsrfCookie(csrfToken));
     headers.append(
       "Set-Cookie",
-      "oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+      "__Host-oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
     );
     headers.append("Location", returnTo);
 

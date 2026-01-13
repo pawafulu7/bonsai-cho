@@ -58,11 +58,13 @@ const loginQuerySchema = z.object({
       (val) => {
         if (!val) return true;
         // Must start with / and not be protocol-relative or contain traversal
+        // Also reject protocol schemes (e.g., /javascript:, /data:)
         return (
           val.startsWith("/") &&
           !val.startsWith("//") &&
           !val.startsWith("/\\") &&
-          !val.includes("..")
+          !val.includes("..") &&
+          !/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(val)
         );
       },
       { message: "Invalid returnTo path" }
@@ -142,13 +144,10 @@ auth.get("/login/github", async (c) => {
 
   const provider = createGitHubProvider(env);
   const state = generateState();
-  const codeVerifier = generateCodeVerifier();
 
-  // Encrypt code_verifier before storing
-  const encryptedCodeVerifier = await encrypt(
-    codeVerifier,
-    c.env.SESSION_SECRET
-  );
+  // GitHub doesn't use PKCE, but schema requires codeVerifier field
+  // Store encrypted empty string for consistency
+  const encryptedCodeVerifier = await encrypt("", c.env.SESSION_SECRET);
 
   // Store state in database
   const expiresAt = new Date(

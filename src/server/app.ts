@@ -3,12 +3,21 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { timing } from "hono/timing";
 
+import authRoutes from "./routes/auth";
+
 // Create Hono app with environment bindings type
 type Bindings = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL?: string;
+  PUBLIC_APP_URL: string;
   NODE_ENV?: string;
+  // OAuth
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  // Session
+  SESSION_SECRET: string;
 };
 
 // biome-ignore lint/complexity/noBannedTypes: Hono requires this type signature for future variable additions
@@ -23,7 +32,7 @@ app.use("*", async (c, next) => {
   const appUrl = c.env?.PUBLIC_APP_URL || "http://localhost:4321";
   const nodeEnv = c.env?.NODE_ENV || "development";
 
-  // In development, allow localhost origins
+  // Parse allowed origins for safer comparison
   const allowedOrigins =
     nodeEnv === "development"
       ? [
@@ -33,17 +42,42 @@ app.use("*", async (c, next) => {
         ]
       : [appUrl];
 
+  // Pre-parse allowed origins for comparison
+  const parsedAllowedOrigins = allowedOrigins
+    .map((o) => {
+      try {
+        const url = new URL(o);
+        return `${url.protocol}//${url.host}`;
+      } catch {
+        return null;
+      }
+    })
+    .filter((o): o is string => o !== null);
+
   const corsMiddleware = cors({
     origin: (origin) => {
       // Allow requests with no origin (same-origin, curl, etc.)
       if (!origin) return appUrl;
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) return origin;
+
+      // Parse and normalize the incoming origin for safer comparison
+      try {
+        const parsedOrigin = new URL(origin);
+        const normalizedOrigin = `${parsedOrigin.protocol}//${parsedOrigin.host}`;
+
+        // Check if normalized origin is in allowed list
+        if (parsedAllowedOrigins.includes(normalizedOrigin)) {
+          return normalizedOrigin;
+        }
+      } catch {
+        // Invalid origin URL, reject
+      }
+
       // Reject other origins
       return null;
     },
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
+    credentials: true,
   });
 
   return corsMiddleware(c, next);
@@ -60,6 +94,9 @@ app.get("/health", (c) => {
 
 // API version prefix
 const api = app.basePath("/api");
+
+// Auth routes
+api.route("/auth", authRoutes);
 
 // Species endpoints - Phase 4 implementation
 api.get("/species", async (c) => {

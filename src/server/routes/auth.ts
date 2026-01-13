@@ -1,0 +1,752 @@
+/**
+ * OAuth Authentication Routes
+ *
+ * Implements GitHub and Google OAuth 2.0 with PKCE.
+ * Uses Arctic library for OAuth handling.
+ */
+
+import { and, eq, gt } from "drizzle-orm";
+import { Hono } from "hono";
+import { z } from "zod";
+import {
+  createGitHubAuthUrl,
+  createGitHubProvider,
+  createGoogleAuthUrl,
+  createGoogleProvider,
+  decodeGoogleIdToken,
+  getGitHubEmail,
+  getGitHubUser,
+  type OAuthEnv,
+  validateGitHubCode,
+  validateGoogleCode,
+  validateGoogleIdTokenClaims,
+} from "@/lib/auth/arctic";
+import {
+  decrypt,
+  encrypt,
+  generateCodeVerifier,
+  generateId,
+  generateNonce,
+  generateState,
+} from "@/lib/auth/crypto";
+import {
+  clearCsrfCookie,
+  createCsrfCookie,
+  generateCsrfToken,
+  parseCsrfCookie,
+  validateCsrfToken,
+} from "@/lib/auth/csrf";
+import {
+  clearSessionCookie,
+  createSession,
+  createSessionCookie,
+  deleteSessionById,
+  getUserSessions,
+  invalidateSession,
+  parseSessionCookie,
+  validateSession,
+} from "@/lib/auth/session";
+import { type Database, getDb } from "@/lib/db/client";
+import * as schema from "@/lib/db/schema";
+
+/**
+ * Check if returnTo path is safe (shared validation logic)
+ * Prevents open redirect attacks by validating:
+ * - Must start with /
+ * - No protocol-relative URLs (//)
+ * - No backslash normalization tricks (/\)
+ * - No directory traversal (..)
+ * - No protocol schemes (/javascript:, /data:, etc.)
+ */
+function isValidReturnTo(val: string): boolean {
+  return (
+    val.startsWith("/") &&
+    !val.startsWith("//") &&
+    !val.startsWith("/\\") &&
+    !val.includes("..") &&
+    !/^\/[a-zA-Z][a-zA-Z0-9+.-]*:/i.test(val)
+  );
+}
+
+// Query parameter schemas
+const loginQuerySchema = z.object({
+  returnTo: z
+    .string()
+    .optional()
+    .refine((val) => !val || isValidReturnTo(val), {
+      message: "Invalid returnTo path",
+    }),
+});
+
+const callbackQuerySchema = z
+  .object({
+    code: z.string().min(1).optional(),
+    state: z.string().min(1).optional(),
+    error: z.string().optional(),
+  })
+  .refine((data) => data.error || (data.code && data.state), {
+    message: "Either error or both code and state are required",
+  });
+
+// Session ID parameter schema (base64url encoded, 43 characters)
+const sessionIdParamSchema = z.object({
+  id: z
+    .string()
+    .min(1, "Session ID is required")
+    .regex(/^[A-Za-z0-9_-]+$/, "Invalid session ID format"),
+});
+
+// Types
+type Bindings = {
+  TURSO_DATABASE_URL: string;
+  TURSO_AUTH_TOKEN: string;
+  PUBLIC_APP_URL: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  SESSION_SECRET: string;
+};
+
+type Variables = {
+  db: Database;
+};
+
+// OAuth state expiry (10 minutes)
+const STATE_EXPIRES_MINUTES = 10;
+
+// Create Hono app for auth routes
+const auth = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+
+// Database middleware - uses cached connection via getDb()
+auth.use("*", async (c, next) => {
+  const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
+  c.set("db", db);
+  await next();
+});
+
+/**
+ * GET /api/auth/login/github
+ * Initiates GitHub OAuth flow
+ */
+auth.get("/login/github", async (c) => {
+  const db = c.get("db");
+
+  // Validate query parameters
+  const query = loginQuerySchema.safeParse({
+    returnTo: c.req.query("returnTo"),
+  });
+  if (!query.success) {
+    return c.json({ error: "Invalid query parameters" }, 400);
+  }
+  const returnTo = validateReturnTo(query.data.returnTo);
+
+  const env: OAuthEnv = {
+    GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: c.env.GOOGLE_CLIENT_SECRET,
+    PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
+  };
+
+  const provider = createGitHubProvider(env);
+  const state = generateState();
+
+  // GitHub doesn't use PKCE, but schema requires codeVerifier field
+  // Store encrypted empty string for consistency
+  const encryptedCodeVerifier = await encrypt("", c.env.SESSION_SECRET);
+
+  // Store state in database
+  const expiresAt = new Date(
+    Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000
+  ).toISOString();
+  await db.insert(schema.oauthStates).values({
+    id: state,
+    codeVerifier: encryptedCodeVerifier,
+    provider: "github",
+    returnTo,
+    expiresAt,
+  });
+
+  // Create authorization URL
+  const url = createGitHubAuthUrl(provider, state);
+
+  // Set state cookie for additional verification
+  const headers = new Headers();
+  headers.append(
+    "Set-Cookie",
+    `__Host-oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+  );
+  headers.append("Location", url.toString());
+
+  return new Response(null, {
+    status: 302,
+    headers,
+  });
+});
+
+/**
+ * GET /api/auth/login/google
+ * Initiates Google OAuth flow with PKCE
+ */
+auth.get("/login/google", async (c) => {
+  const db = c.get("db");
+
+  // Validate query parameters
+  const query = loginQuerySchema.safeParse({
+    returnTo: c.req.query("returnTo"),
+  });
+  if (!query.success) {
+    return c.json({ error: "Invalid query parameters" }, 400);
+  }
+  const returnTo = validateReturnTo(query.data.returnTo);
+
+  const env: OAuthEnv = {
+    GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
+    GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
+    GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: c.env.GOOGLE_CLIENT_SECRET,
+    PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
+  };
+
+  const provider = createGoogleProvider(env);
+  const state = generateState();
+  const codeVerifier = generateCodeVerifier();
+  const nonce = generateNonce();
+
+  // Encrypt code_verifier before storing
+  const encryptedCodeVerifier = await encrypt(
+    codeVerifier,
+    c.env.SESSION_SECRET
+  );
+
+  // Store state in database
+  const expiresAt = new Date(
+    Date.now() + STATE_EXPIRES_MINUTES * 60 * 1000
+  ).toISOString();
+  await db.insert(schema.oauthStates).values({
+    id: state,
+    codeVerifier: encryptedCodeVerifier,
+    provider: "google",
+    returnTo,
+    nonce,
+    expiresAt,
+  });
+
+  // Create authorization URL with PKCE
+  const url = createGoogleAuthUrl(provider, state, codeVerifier);
+  // Add nonce to URL for id_token verification
+  url.searchParams.set("nonce", nonce);
+
+  // Set state cookie for additional verification
+  const headers = new Headers();
+  headers.append(
+    "Set-Cookie",
+    `__Host-oauth_state=${state}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`
+  );
+  headers.append("Location", url.toString());
+
+  return new Response(null, {
+    status: 302,
+    headers,
+  });
+});
+
+/**
+ * GET /api/auth/callback/github
+ * Handles GitHub OAuth callback
+ */
+auth.get("/callback/github", async (c) => {
+  const db = c.get("db");
+
+  // Validate query parameters
+  const query = callbackQuerySchema.safeParse({
+    code: c.req.query("code"),
+    state: c.req.query("state"),
+    error: c.req.query("error"),
+  });
+  if (!query.success) {
+    return c.redirect("/login?error=invalid_params");
+  }
+
+  const { code, state, error } = query.data;
+
+  // Handle OAuth errors
+  if (error) {
+    console.error("GitHub OAuth error:", error);
+    return c.redirect(`/login?error=${encodeURIComponent(error)}`);
+  }
+
+  // Zod refine guarantees code and state exist when error is absent
+  // This explicit check satisfies TypeScript without type assertions
+  if (!code || !state) {
+    return c.redirect("/login?error=invalid_callback");
+  }
+
+  // Verify state cookie
+  const cookieHeader = c.req.header("Cookie") || "";
+  const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
+  if (stateCookie !== state) {
+    return c.redirect("/login?error=state_mismatch");
+  }
+
+  try {
+    // Retrieve and validate stored state
+    const now = new Date().toISOString();
+    const storedState = await db
+      .select()
+      .from(schema.oauthStates)
+      .where(
+        and(
+          eq(schema.oauthStates.id, state),
+          eq(schema.oauthStates.provider, "github"),
+          gt(schema.oauthStates.expiresAt, now)
+        )
+      )
+      .limit(1);
+
+    if (storedState.length === 0) {
+      return c.redirect("/login?error=invalid_state");
+    }
+
+    const oauthState = storedState[0];
+    const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
+
+    // Delete used state
+    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
+
+    // Exchange code for tokens
+    const env: OAuthEnv = {
+      GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
+      GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
+      GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: c.env.GOOGLE_CLIENT_SECRET,
+      PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
+    };
+    const provider = createGitHubProvider(env);
+    const tokens = await validateGitHubCode(provider, code);
+
+    // Get user info
+    const githubUser = await getGitHubUser(tokens.accessToken());
+    const githubEmail = await getGitHubEmail(tokens.accessToken());
+
+    if (!githubEmail) {
+      return c.redirect("/login?error=email_required");
+    }
+
+    // Find or create user
+    const { user } = await findOrCreateUser(db, {
+      provider: "github",
+      providerAccountId: String(githubUser.id),
+      email: githubEmail.email,
+      emailVerified: githubEmail.verified,
+      name: githubUser.name || githubUser.login,
+      avatarUrl: githubUser.avatar_url,
+    });
+
+    // Create session
+    const { token } = await createSession(db, user.id);
+
+    // Generate CSRF token
+    const csrfToken = generateCsrfToken();
+
+    // Set cookies and redirect
+    const headers = new Headers();
+    headers.append("Set-Cookie", createSessionCookie(token));
+    headers.append("Set-Cookie", createCsrfCookie(csrfToken));
+    headers.append(
+      "Set-Cookie",
+      "__Host-oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    );
+    headers.append("Location", returnTo);
+
+    return new Response(null, {
+      status: 302,
+      headers,
+    });
+  } catch (err) {
+    console.error("GitHub callback error:", err);
+    return c.redirect("/login?error=callback_failed");
+  }
+});
+
+/**
+ * GET /api/auth/callback/google
+ * Handles Google OAuth callback
+ */
+auth.get("/callback/google", async (c) => {
+  const db = c.get("db");
+
+  // Validate query parameters
+  const query = callbackQuerySchema.safeParse({
+    code: c.req.query("code"),
+    state: c.req.query("state"),
+    error: c.req.query("error"),
+  });
+  if (!query.success) {
+    return c.redirect("/login?error=invalid_params");
+  }
+
+  const { code, state, error } = query.data;
+
+  // Handle OAuth errors
+  if (error) {
+    console.error("Google OAuth error:", error);
+    return c.redirect(`/login?error=${encodeURIComponent(error)}`);
+  }
+
+  // Zod refine guarantees code and state exist when error is absent
+  // This explicit check satisfies TypeScript without type assertions
+  if (!code || !state) {
+    return c.redirect("/login?error=invalid_callback");
+  }
+
+  // Verify state cookie
+  const cookieHeader = c.req.header("Cookie") || "";
+  const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
+  if (stateCookie !== state) {
+    return c.redirect("/login?error=state_mismatch");
+  }
+
+  try {
+    // Retrieve and validate stored state
+    const now = new Date().toISOString();
+    const storedState = await db
+      .select()
+      .from(schema.oauthStates)
+      .where(
+        and(
+          eq(schema.oauthStates.id, state),
+          eq(schema.oauthStates.provider, "google"),
+          gt(schema.oauthStates.expiresAt, now)
+        )
+      )
+      .limit(1);
+
+    if (storedState.length === 0) {
+      return c.redirect("/login?error=invalid_state");
+    }
+
+    const oauthState = storedState[0];
+    const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
+
+    // Delete used state
+    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
+
+    // Decrypt code_verifier
+    const codeVerifier = await decrypt(
+      oauthState.codeVerifier,
+      c.env.SESSION_SECRET
+    );
+
+    // Exchange code for tokens
+    const env: OAuthEnv = {
+      GITHUB_CLIENT_ID: c.env.GITHUB_CLIENT_ID,
+      GITHUB_CLIENT_SECRET: c.env.GITHUB_CLIENT_SECRET,
+      GOOGLE_CLIENT_ID: c.env.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: c.env.GOOGLE_CLIENT_SECRET,
+      PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
+    };
+    const provider = createGoogleProvider(env);
+    const tokens = await validateGoogleCode(provider, code, codeVerifier);
+
+    // Decode and validate ID token
+    const idToken = tokens.idToken();
+    const claims = decodeGoogleIdToken(idToken);
+
+    // Validate claims
+    const validation = validateGoogleIdTokenClaims(
+      claims,
+      c.env.GOOGLE_CLIENT_ID,
+      oauthState.nonce || undefined
+    );
+
+    if (!validation.valid) {
+      console.error("Google ID token validation failed:", validation.error);
+      return c.redirect("/login?error=token_validation_failed");
+    }
+
+    // Find or create user
+    const { user } = await findOrCreateUser(db, {
+      provider: "google",
+      providerAccountId: claims.sub,
+      email: claims.email,
+      emailVerified: claims.email_verified,
+      name: claims.name || claims.email.split("@")[0],
+      avatarUrl: claims.picture,
+    });
+
+    // Create session
+    const { token } = await createSession(db, user.id);
+
+    // Generate CSRF token
+    const csrfToken = generateCsrfToken();
+
+    // Set cookies and redirect
+    const headers = new Headers();
+    headers.append("Set-Cookie", createSessionCookie(token));
+    headers.append("Set-Cookie", createCsrfCookie(csrfToken));
+    headers.append(
+      "Set-Cookie",
+      "__Host-oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax"
+    );
+    headers.append("Location", returnTo);
+
+    return new Response(null, {
+      status: 302,
+      headers,
+    });
+  } catch (err) {
+    console.error("Google callback error:", err);
+    return c.redirect("/login?error=callback_failed");
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Logs out the current user
+ */
+auth.post("/logout", async (c) => {
+  const db = c.get("db");
+  const cookieHeader = c.req.header("Cookie") || "";
+
+  // CSRF validation
+  const csrfCookie = parseCsrfCookie(cookieHeader);
+  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+    return c.json({ error: "Invalid CSRF token" }, 403);
+  }
+
+  const sessionToken = parseSessionCookie(cookieHeader);
+
+  if (sessionToken) {
+    await invalidateSession(db, sessionToken);
+  }
+
+  const headers = new Headers();
+  headers.append("Set-Cookie", clearSessionCookie());
+  headers.append("Set-Cookie", clearCsrfCookie());
+
+  return c.json({ success: true }, { headers });
+});
+
+/**
+ * GET /api/auth/me
+ * Returns current user info
+ */
+auth.get("/me", async (c) => {
+  const db = c.get("db");
+  const cookieHeader = c.req.header("Cookie") || "";
+  const sessionToken = parseSessionCookie(cookieHeader);
+
+  if (!sessionToken) {
+    return c.json({ user: null });
+  }
+
+  const result = await validateSession(db, sessionToken);
+
+  if (!result) {
+    return c.json({ user: null });
+  }
+
+  return c.json({ user: result.user });
+});
+
+/**
+ * GET /api/auth/sessions
+ * Returns all active sessions for current user
+ */
+auth.get("/sessions", async (c) => {
+  const db = c.get("db");
+  const cookieHeader = c.req.header("Cookie") || "";
+  const sessionToken = parseSessionCookie(cookieHeader);
+
+  if (!sessionToken) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const result = await validateSession(db, sessionToken);
+
+  if (!result) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const sessions = await getUserSessions(db, result.user.id);
+
+  return c.json({ sessions });
+});
+
+/**
+ * DELETE /api/auth/sessions/:id
+ * Deletes a specific session
+ */
+auth.delete("/sessions/:id", async (c) => {
+  const db = c.get("db");
+
+  // Validate session ID parameter
+  const paramResult = sessionIdParamSchema.safeParse({ id: c.req.param("id") });
+  if (!paramResult.success) {
+    return c.json({ error: "Invalid session ID" }, 400);
+  }
+  const { id: sessionId } = paramResult.data;
+
+  const cookieHeader = c.req.header("Cookie") || "";
+
+  // CSRF validation
+  const csrfCookie = parseCsrfCookie(cookieHeader);
+  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+    return c.json({ error: "Invalid CSRF token" }, 403);
+  }
+
+  const sessionToken = parseSessionCookie(cookieHeader);
+
+  if (!sessionToken) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const result = await validateSession(db, sessionToken);
+
+  if (!result) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const deleted = await deleteSessionById(db, sessionId, result.user.id);
+
+  if (!deleted) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+// Helper functions
+
+/**
+ * Parse a specific cookie from cookie header
+ */
+function parseCookie(cookieHeader: string, name: string): string | null {
+  const cookies = cookieHeader.split(";").map((c) => c.trim());
+  for (const cookie of cookies) {
+    const [cookieName, ...valueParts] = cookie.split("=");
+    if (cookieName === name) {
+      return valueParts.join("=") || null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Validate and sanitize returnTo URL
+ * Returns "/" for invalid paths, uses shared isValidReturnTo logic
+ */
+function validateReturnTo(returnTo: string | undefined): string {
+  if (!returnTo || !isValidReturnTo(returnTo)) {
+    return "/";
+  }
+  return returnTo;
+}
+
+/**
+ * Find existing user or create new one
+ * Uses transaction to ensure data consistency and prevent race conditions
+ * Email addresses are normalized to lowercase per RFC 5321
+ */
+async function findOrCreateUser(
+  db: Database,
+  data: {
+    provider: "github" | "google";
+    providerAccountId: string;
+    email: string;
+    emailVerified: boolean;
+    name: string;
+    avatarUrl?: string | null;
+  }
+): Promise<{ user: typeof schema.users.$inferSelect; isNew: boolean }> {
+  // Normalize email to lowercase (RFC 5321: email addresses are case-insensitive)
+  const normalizedEmail = data.email.toLowerCase().trim();
+
+  // Use transaction for ALL checks and mutations to prevent race conditions
+  return await db.transaction(async (tx) => {
+    // Check if OAuth account exists
+    const existingOAuth = await tx
+      .select()
+      .from(schema.oauthAccounts)
+      .innerJoin(schema.users, eq(schema.oauthAccounts.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.oauthAccounts.provider, data.provider),
+          eq(schema.oauthAccounts.providerAccountId, data.providerAccountId)
+        )
+      )
+      .limit(1);
+
+    if (existingOAuth.length > 0) {
+      // Update avatar if changed
+      if (
+        data.avatarUrl &&
+        existingOAuth[0].users.avatarUrl !== data.avatarUrl
+      ) {
+        await tx
+          .update(schema.users)
+          .set({
+            avatarUrl: data.avatarUrl,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(schema.users.id, existingOAuth[0].users.id));
+      }
+      return { user: existingOAuth[0].users, isNew: false };
+    }
+
+    // Check if user exists by email (case-insensitive via normalized email)
+    const existingUser = await tx
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.email, normalizedEmail))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      // Link OAuth account to existing user
+      await tx.insert(schema.oauthAccounts).values({
+        id: generateId(),
+        userId: existingUser[0].id,
+        provider: data.provider,
+        providerAccountId: data.providerAccountId,
+        email: normalizedEmail,
+        emailVerified: data.emailVerified,
+      });
+
+      return { user: existingUser[0], isNew: false };
+    }
+
+    // Create new user with normalized email (use .returning() to avoid extra SELECT)
+    const userId = generateId();
+    const now = new Date().toISOString();
+
+    const [newUser] = await tx
+      .insert(schema.users)
+      .values({
+        id: userId,
+        email: normalizedEmail,
+        name: data.name,
+        avatarUrl: data.avatarUrl || null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    // Create OAuth account
+    await tx.insert(schema.oauthAccounts).values({
+      id: generateId(),
+      userId,
+      provider: data.provider,
+      providerAccountId: data.providerAccountId,
+      email: normalizedEmail,
+      emailVerified: data.emailVerified,
+    });
+
+    return { user: newUser, isNew: true };
+  });
+}
+
+export default auth;

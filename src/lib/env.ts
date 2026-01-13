@@ -10,6 +10,17 @@ const envSchema = z.object({
   // App
   PUBLIC_APP_URL: z.string().url().default("http://localhost:4321"),
 
+  // OAuth (required for authentication)
+  GITHUB_CLIENT_ID: z.string().min(1, "GITHUB_CLIENT_ID is required"),
+  GITHUB_CLIENT_SECRET: z.string().min(1, "GITHUB_CLIENT_SECRET is required"),
+  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
+  GOOGLE_CLIENT_SECRET: z.string().min(1, "GOOGLE_CLIENT_SECRET is required"),
+
+  // Session encryption secret (32+ characters recommended)
+  SESSION_SECRET: z
+    .string()
+    .min(32, "SESSION_SECRET must be at least 32 characters"),
+
   // Node environment
   NODE_ENV: z
     .enum(["development", "production", "test"])

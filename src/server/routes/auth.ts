@@ -277,14 +277,16 @@ auth.get("/callback/github", async (c) => {
     return c.redirect(`/login?error=${encodeURIComponent(error)}`);
   }
 
-  // Schema ensures code and state exist when error is absent
-  const authCode = code as string;
-  const authState = state as string;
+  // Zod refine guarantees code and state exist when error is absent
+  // This explicit check satisfies TypeScript without type assertions
+  if (!code || !state) {
+    return c.redirect("/login?error=invalid_callback");
+  }
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
-  if (stateCookie !== authState) {
+  if (stateCookie !== state) {
     return c.redirect("/login?error=state_mismatch");
   }
 
@@ -296,7 +298,7 @@ auth.get("/callback/github", async (c) => {
       .from(schema.oauthStates)
       .where(
         and(
-          eq(schema.oauthStates.id, authState),
+          eq(schema.oauthStates.id, state),
           eq(schema.oauthStates.provider, "github"),
           gt(schema.oauthStates.expiresAt, now)
         )
@@ -311,9 +313,7 @@ auth.get("/callback/github", async (c) => {
     const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
-    await db
-      .delete(schema.oauthStates)
-      .where(eq(schema.oauthStates.id, authState));
+    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
 
     // Exchange code for tokens
     const env: OAuthEnv = {
@@ -324,7 +324,7 @@ auth.get("/callback/github", async (c) => {
       PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
     };
     const provider = createGitHubProvider(env);
-    const tokens = await validateGitHubCode(provider, authCode);
+    const tokens = await validateGitHubCode(provider, code);
 
     // Get user info
     const githubUser = await getGitHubUser(tokens.accessToken());
@@ -395,14 +395,16 @@ auth.get("/callback/google", async (c) => {
     return c.redirect(`/login?error=${encodeURIComponent(error)}`);
   }
 
-  // Schema ensures code and state exist when error is absent
-  const authCode = code as string;
-  const authState = state as string;
+  // Zod refine guarantees code and state exist when error is absent
+  // This explicit check satisfies TypeScript without type assertions
+  if (!code || !state) {
+    return c.redirect("/login?error=invalid_callback");
+  }
 
   // Verify state cookie
   const cookieHeader = c.req.header("Cookie") || "";
   const stateCookie = parseCookie(cookieHeader, "__Host-oauth_state");
-  if (stateCookie !== authState) {
+  if (stateCookie !== state) {
     return c.redirect("/login?error=state_mismatch");
   }
 
@@ -414,7 +416,7 @@ auth.get("/callback/google", async (c) => {
       .from(schema.oauthStates)
       .where(
         and(
-          eq(schema.oauthStates.id, authState),
+          eq(schema.oauthStates.id, state),
           eq(schema.oauthStates.provider, "google"),
           gt(schema.oauthStates.expiresAt, now)
         )
@@ -429,9 +431,7 @@ auth.get("/callback/google", async (c) => {
     const returnTo = validateReturnTo(oauthState.returnTo ?? undefined);
 
     // Delete used state
-    await db
-      .delete(schema.oauthStates)
-      .where(eq(schema.oauthStates.id, authState));
+    await db.delete(schema.oauthStates).where(eq(schema.oauthStates.id, state));
 
     // Decrypt code_verifier
     const codeVerifier = await decrypt(
@@ -448,7 +448,7 @@ auth.get("/callback/google", async (c) => {
       PUBLIC_APP_URL: c.env.PUBLIC_APP_URL,
     };
     const provider = createGoogleProvider(env);
-    const tokens = await validateGoogleCode(provider, authCode, codeVerifier);
+    const tokens = await validateGoogleCode(provider, code, codeVerifier);
 
     // Decode and validate ID token
     const idToken = tokens.idToken();
@@ -719,18 +719,21 @@ async function findOrCreateUser(
       return { user: existingUser[0], isNew: false };
     }
 
-    // Create new user with normalized email
+    // Create new user with normalized email (use .returning() to avoid extra SELECT)
     const userId = generateId();
     const now = new Date().toISOString();
 
-    await tx.insert(schema.users).values({
-      id: userId,
-      email: normalizedEmail,
-      name: data.name,
-      avatarUrl: data.avatarUrl || null,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const [newUser] = await tx
+      .insert(schema.users)
+      .values({
+        id: userId,
+        email: normalizedEmail,
+        name: data.name,
+        avatarUrl: data.avatarUrl || null,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
 
     // Create OAuth account
     await tx.insert(schema.oauthAccounts).values({
@@ -742,13 +745,7 @@ async function findOrCreateUser(
       emailVerified: data.emailVerified,
     });
 
-    const newUser = await tx
-      .select()
-      .from(schema.users)
-      .where(eq(schema.users.id, userId))
-      .limit(1);
-
-    return { user: newUser[0], isNew: true };
+    return { user: newUser, isNew: true };
   });
 }
 

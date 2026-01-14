@@ -23,20 +23,14 @@ export interface GalleryImage {
  * Props for the main BonsaiGallery component
  */
 export interface BonsaiGalleryProps {
-  /** Array of images to display */
-  images: GalleryImage[];
   /** Bonsai ID for API calls */
   bonsaiId: string;
-  /** Enable editing mode (drag-and-drop, delete) */
-  editable?: boolean;
-  /** Callback when image order changes */
-  onOrderChange?: (imageIds: string[]) => void;
-  /** Callback when an image is deleted */
-  onImageDelete?: (imageId: string) => void;
-  /** Callback when primary image is set */
-  onSetPrimary?: (imageId: string) => void;
-  /** Callback when a new image is uploaded */
-  onImageUpload?: (image: GalleryImage) => void;
+  /** Initial array of images to display */
+  images?: GalleryImage[];
+  /** Whether the current user is the owner (enables editing) */
+  isOwner?: boolean;
+  /** CSRF token for API mutations */
+  csrfToken?: string;
   /** Additional CSS classes */
   className?: string;
 }
@@ -63,10 +57,10 @@ export interface GalleryThumbnailListProps {
   selectedId?: string;
   /** Click handler for thumbnail selection */
   onSelect?: (image: GalleryImage) => void;
-  /** Enable drag-and-drop reordering */
-  sortable?: boolean;
-  /** Callback when order changes via drag-and-drop */
-  onReorder?: (activeId: string, overId: string) => void;
+  /** Callback when order changes via drag-and-drop (for sortable list) */
+  onReorder?: (images: GalleryImage[]) => void;
+  /** Disable drag interactions */
+  disabled?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -99,10 +93,10 @@ export interface GalleryLightboxProps {
   isOpen: boolean;
   /** Close handler */
   onClose: () => void;
-  /** Navigate to previous/next image */
-  onNavigate: (direction: "prev" | "next") => void;
-  /** Navigate to specific index */
-  onIndexChange?: (index: number) => void;
+  /** Handler for previous button */
+  onPrev: () => void;
+  /** Handler for next button */
+  onNext: () => void;
 }
 
 /**

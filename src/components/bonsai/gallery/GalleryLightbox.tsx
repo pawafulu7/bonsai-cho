@@ -25,7 +25,8 @@ export function GalleryLightbox({
   currentIndex,
   isOpen,
   onClose,
-  onNavigate,
+  onPrev,
+  onNext,
 }: GalleryLightboxProps) {
   const currentImage = images[currentIndex];
   const hasPrev = currentIndex > 0;
@@ -40,26 +41,30 @@ export function GalleryLightbox({
         case "ArrowLeft":
           if (hasPrev) {
             event.preventDefault();
-            onNavigate("prev");
+            onPrev();
           }
           break;
         case "ArrowRight":
           if (hasNext) {
             event.preventDefault();
-            onNavigate("next");
+            onNext();
           }
           break;
         case "Home":
-          event.preventDefault();
-          onNavigate("prev");
+          if (hasPrev) {
+            event.preventDefault();
+            onPrev();
+          }
           break;
         case "End":
-          event.preventDefault();
-          onNavigate("next");
+          if (hasNext) {
+            event.preventDefault();
+            onNext();
+          }
           break;
       }
     },
-    [isOpen, hasPrev, hasNext, onNavigate]
+    [isOpen, hasPrev, hasNext, onPrev, onNext]
   );
 
   // Register keyboard event listener
@@ -173,8 +178,8 @@ export function GalleryLightbox({
             <GalleryLightboxNavigation
               currentIndex={currentIndex}
               totalImages={images.length}
-              onPrev={() => onNavigate("prev")}
-              onNext={() => onNavigate("next")}
+              onPrev={onPrev}
+              onNext={onNext}
               hasPrev={hasPrev}
               hasNext={hasNext}
             />

@@ -6,33 +6,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { z } from "zod";
-
-// Re-create schemas for testing (mirrors implementation in images.ts)
-const bonsaiIdParamSchema = z.object({
-  bonsaiId: z.string().min(1, "Bonsai ID is required"),
-});
-
-const imageIdParamSchema = z.object({
-  bonsaiId: z.string().min(1, "Bonsai ID is required"),
-  imageId: z.string().min(1, "Image ID is required"),
-});
-
-const reorderSchema = z.object({
-  imageIds: z
-    .array(z.string().min(1))
-    .min(1, "At least one image ID is required"),
-});
-
-const updateImageSchema = z.object({
-  caption: z.string().max(500).optional(),
-  isPrimary: z.boolean().optional(),
-});
-
-const uploadQuerySchema = z.object({
-  caption: z.string().max(500).optional(),
-  takenAt: z.string().datetime().optional(),
-});
+import {
+  bonsaiIdParamSchema,
+  imageIdParamSchema,
+  reorderSchema,
+  updateImageSchema,
+  uploadQuerySchema,
+} from "./images";
 
 describe("Gallery Image API Schemas", () => {
   describe("bonsaiIdParamSchema", () => {

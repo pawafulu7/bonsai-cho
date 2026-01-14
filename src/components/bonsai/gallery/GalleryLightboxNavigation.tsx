@@ -15,8 +15,8 @@ export function GalleryLightboxNavigation({
   totalImages,
   onPrev,
   onNext,
-  hasPrev,
-  hasNext,
+  canGoPrev,
+  canGoNext,
 }: GalleryLightboxNavigationProps) {
   return (
     <>
@@ -24,9 +24,9 @@ export function GalleryLightboxNavigation({
       <button
         type="button"
         onClick={onPrev}
-        disabled={!hasPrev}
+        disabled={!canGoPrev}
         className={cn(
-          "absolute left-4 top-1/2 -translate-y-1/2",
+          "absolute top-1/2 -translate-y-1/2",
           "w-12 h-12 rounded-full",
           "bg-black/40 backdrop-blur-sm",
           "flex items-center justify-center",
@@ -53,9 +53,9 @@ export function GalleryLightboxNavigation({
       <button
         type="button"
         onClick={onNext}
-        disabled={!hasNext}
+        disabled={!canGoNext}
         className={cn(
-          "absolute right-4 top-1/2 -translate-y-1/2",
+          "absolute top-1/2 -translate-y-1/2",
           "w-12 h-12 rounded-full",
           "bg-black/40 backdrop-blur-sm",
           "flex items-center justify-center",
@@ -81,7 +81,7 @@ export function GalleryLightboxNavigation({
       {/* Counter */}
       <output
         className={cn(
-          "absolute bottom-4 left-1/2 -translate-x-1/2",
+          "absolute left-1/2 -translate-x-1/2",
           "px-3 py-1.5 rounded-full",
           "bg-black/40 backdrop-blur-sm",
           "text-white text-sm font-sans",

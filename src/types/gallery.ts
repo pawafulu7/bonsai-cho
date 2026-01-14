@@ -75,8 +75,6 @@ export interface GalleryThumbnailItemProps {
   isSelected?: boolean;
   /** Click handler */
   onClick?: () => void;
-  /** Enable sortable mode (for dnd-kit) */
-  sortable?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -97,6 +95,10 @@ export interface GalleryLightboxProps {
   onPrev: () => void;
   /** Handler for next button */
   onNext: () => void;
+  /** Handler for Home key - jump to first image */
+  onGoToFirst?: () => void;
+  /** Handler for End key - jump to last image */
+  onGoToLast?: () => void;
 }
 
 /**
@@ -111,10 +113,10 @@ export interface GalleryLightboxNavigationProps {
   onPrev: () => void;
   /** Handler for next button */
   onNext: () => void;
-  /** Whether previous button is disabled */
-  hasPrev: boolean;
-  /** Whether next button is disabled */
-  hasNext: boolean;
+  /** Whether previous navigation is available */
+  canGoPrev: boolean;
+  /** Whether next navigation is available */
+  canGoNext: boolean;
 }
 
 /**

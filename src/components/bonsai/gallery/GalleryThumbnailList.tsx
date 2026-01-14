@@ -50,7 +50,7 @@ export function GalleryThumbnailList({
           "flex gap-2 lg:hidden",
           // Horizontal scroll with snap
           "overflow-x-auto",
-          "scroll-snap-type-x-mandatory",
+          "snap-x snap-mandatory",
           // Hide scrollbar but keep functionality
           "scrollbar-none",
           // Safe area for swipe hint
@@ -60,7 +60,7 @@ export function GalleryThumbnailList({
         aria-label="Bonsai image thumbnails"
       >
         {images.map((image) => (
-          <div key={image.id} className="flex-shrink-0 w-20">
+          <div key={image.id} className="flex-shrink-0 w-20 snap-start">
             <GalleryThumbnailItem
               image={image}
               isSelected={selectedId === image.id}

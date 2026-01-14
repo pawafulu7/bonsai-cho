@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { GalleryImage } from "@/types/gallery";
 
 interface UseGalleryImagesOptions {
@@ -40,6 +40,10 @@ export function useGalleryImages({
     initialImages.find((img) => img.isPrimary) || initialImages[0] || null
   );
 
+  // Track selectedImage in ref to avoid recreating refetch on selection change
+  const selectedImageRef = useRef(selectedImage);
+  selectedImageRef.current = selectedImage;
+
   const getHeaders = useCallback(() => {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -69,9 +73,10 @@ export function useGalleryImages({
       setImages(fetchedImages);
 
       // Update selected image if current selection is no longer valid
+      const currentSelected = selectedImageRef.current;
       if (
-        selectedImage &&
-        !fetchedImages.find((img) => img.id === selectedImage.id)
+        currentSelected &&
+        !fetchedImages.find((img) => img.id === currentSelected.id)
       ) {
         setSelectedImage(
           fetchedImages.find((img) => img.isPrimary) || fetchedImages[0] || null
@@ -82,7 +87,7 @@ export function useGalleryImages({
     } finally {
       setIsLoading(false);
     }
-  }, [bonsaiId, selectedImage]);
+  }, [bonsaiId]);
 
   // Reorder images (optimistic update)
   const reorderImages = useCallback(

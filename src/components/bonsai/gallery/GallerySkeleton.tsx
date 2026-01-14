@@ -59,7 +59,7 @@ export function GallerySkeleton({
           "flex gap-2 overflow-x-auto",
           "lg:hidden",
           // Horizontal scroll with snap
-          "scroll-snap-x-mandatory",
+          "snap-x snap-mandatory",
           "pb-2"
         )}
       >
@@ -71,7 +71,8 @@ export function GallerySkeleton({
               "flex-shrink-0",
               "w-20 h-20",
               "rounded-md",
-              "bg-muted"
+              "bg-muted",
+              "snap-start"
             )}
           />
         ))}

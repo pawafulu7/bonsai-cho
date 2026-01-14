@@ -120,7 +120,7 @@ export function SortableGalleryThumbnailList({
         className={cn(
           "flex gap-2 lg:hidden",
           "overflow-x-auto",
-          "scroll-snap-type-x-mandatory",
+          "snap-x snap-mandatory",
           "scrollbar-none",
           "pb-2 -mb-2",
           className
@@ -128,7 +128,7 @@ export function SortableGalleryThumbnailList({
         aria-label="Bonsai image thumbnails"
       >
         {images.map((image) => (
-          <div key={image.id} className="flex-shrink-0 w-20">
+          <div key={image.id} className="flex-shrink-0 w-20 snap-start">
             <button
               type="button"
               onClick={() => onSelect?.(image)}
@@ -143,7 +143,7 @@ export function SortableGalleryThumbnailList({
               aria-pressed={selectedId === image.id}
             >
               <img
-                src={image.imageUrl}
+                src={image.thumbnailUrl || image.imageUrl}
                 alt={image.caption || "Bonsai thumbnail"}
                 className="w-full h-full object-cover"
                 loading="lazy"

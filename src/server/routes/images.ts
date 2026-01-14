@@ -40,28 +40,28 @@ type Variables = {
   userId: string;
 };
 
-// Zod schemas
-const bonsaiIdParamSchema = z.object({
+// Zod schemas (exported for testing)
+export const bonsaiIdParamSchema = z.object({
   bonsaiId: z.string().min(1, "Bonsai ID is required"),
 });
 
-const uploadQuerySchema = z.object({
+export const uploadQuerySchema = z.object({
   caption: z.string().max(500).optional(),
   takenAt: z.string().datetime().optional(),
 });
 
-const imageIdParamSchema = z.object({
+export const imageIdParamSchema = z.object({
   bonsaiId: z.string().min(1, "Bonsai ID is required"),
   imageId: z.string().min(1, "Image ID is required"),
 });
 
-const reorderSchema = z.object({
+export const reorderSchema = z.object({
   imageIds: z
     .array(z.string().min(1))
     .min(1, "At least one image ID is required"),
 });
 
-const updateImageSchema = z.object({
+export const updateImageSchema = z.object({
   caption: z.string().max(500).optional(),
   isPrimary: z.boolean().optional(),
 });

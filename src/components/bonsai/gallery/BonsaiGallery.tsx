@@ -36,6 +36,7 @@ export function BonsaiGallery({
     selectedImage,
     setSelectedImage,
     reorderImages,
+    refetch,
   } = useGalleryImages({
     bonsaiId,
     initialImages,
@@ -63,6 +64,23 @@ export function BonsaiGallery({
 
   const handleLightboxNext = () => {
     setLightboxIndex((prev) => Math.min(images.length - 1, prev + 1));
+  };
+
+  const handleLightboxGoToFirst = () => {
+    setLightboxIndex(0);
+  };
+
+  const handleLightboxGoToLast = () => {
+    setLightboxIndex(images.length - 1);
+  };
+
+  // Handle lightbox close - sync selected image with current lightbox view
+  const handleLightboxClose = () => {
+    const currentImage = images[lightboxIndex];
+    if (currentImage) {
+      setSelectedImage(currentImage);
+    }
+    setLightboxOpen(false);
   };
 
   // Handle reorder (owner only)
@@ -93,7 +111,7 @@ export function BonsaiGallery({
         <button
           type="button"
           className="mt-2 text-sm text-muted-foreground hover:text-foreground underline"
-          onClick={() => window.location.reload()}
+          onClick={() => refetch()}
         >
           Retry
         </button>
@@ -133,9 +151,11 @@ export function BonsaiGallery({
         images={images}
         isOpen={lightboxOpen}
         currentIndex={lightboxIndex}
-        onClose={() => setLightboxOpen(false)}
+        onClose={handleLightboxClose}
         onPrev={handleLightboxPrev}
         onNext={handleLightboxNext}
+        onGoToFirst={handleLightboxGoToFirst}
+        onGoToLast={handleLightboxGoToLast}
       />
     </div>
   );

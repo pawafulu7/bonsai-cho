@@ -27,10 +27,12 @@ export function GalleryLightbox({
   onClose,
   onPrev,
   onNext,
+  onGoToFirst,
+  onGoToLast,
 }: GalleryLightboxProps) {
   const currentImage = images[currentIndex];
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex < images.length - 1;
+  const canGoPrev = currentIndex > 0;
+  const canGoNext = currentIndex < images.length - 1;
 
   // Keyboard navigation handler
   const handleKeyDown = useCallback(
@@ -39,32 +41,32 @@ export function GalleryLightbox({
 
       switch (event.key) {
         case "ArrowLeft":
-          if (hasPrev) {
+          if (canGoPrev) {
             event.preventDefault();
             onPrev();
           }
           break;
         case "ArrowRight":
-          if (hasNext) {
+          if (canGoNext) {
             event.preventDefault();
             onNext();
           }
           break;
         case "Home":
-          if (hasPrev) {
+          if (canGoPrev && onGoToFirst) {
             event.preventDefault();
-            onPrev();
+            onGoToFirst();
           }
           break;
         case "End":
-          if (hasNext) {
+          if (canGoNext && onGoToLast) {
             event.preventDefault();
-            onNext();
+            onGoToLast();
           }
           break;
       }
     },
-    [isOpen, hasPrev, hasNext, onPrev, onNext]
+    [isOpen, canGoPrev, canGoNext, onPrev, onNext, onGoToFirst, onGoToLast]
   );
 
   // Register keyboard event listener
@@ -93,8 +95,6 @@ export function GalleryLightbox({
             "fixed inset-0 translate-x-0 translate-y-0",
             "flex items-center justify-center"
           )}
-          // Remove default close button (we have custom one)
-          // @ts-expect-error - Remove close button from dialog
           hideCloseButton
         >
           {/* Hidden title for accessibility */}
@@ -180,8 +180,8 @@ export function GalleryLightbox({
               totalImages={images.length}
               onPrev={onPrev}
               onNext={onNext}
-              hasPrev={hasPrev}
-              hasNext={hasNext}
+              canGoPrev={canGoPrev}
+              canGoNext={canGoNext}
             />
           )}
         </DialogContent>

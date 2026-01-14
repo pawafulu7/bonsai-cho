@@ -3,7 +3,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { timing } from "hono/timing";
 
+import type { R2BucketBinding } from "@/lib/storage/r2";
 import authRoutes from "./routes/auth";
+import imagesRoutes from "./routes/images";
 
 // Create Hono app with environment bindings type
 type Bindings = {
@@ -18,6 +20,9 @@ type Bindings = {
   GOOGLE_CLIENT_SECRET: string;
   // Session
   SESSION_SECRET: string;
+  // R2 Storage
+  R2_BUCKET: R2BucketBinding;
+  R2_PUBLIC_URL?: string;
 };
 
 // biome-ignore lint/complexity/noBannedTypes: Hono requires this type signature for future variable additions
@@ -121,6 +126,9 @@ api.get("/bonsai", async (c) => {
     message: "Bonsai endpoint - Phase 4 implementation pending",
   });
 });
+
+// Bonsai image routes
+api.route("/bonsai", imagesRoutes);
 
 // 404 handler
 app.notFound((c) => {

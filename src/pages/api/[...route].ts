@@ -1,6 +1,12 @@
 import type { APIRoute } from "astro";
 import { type Env, parseEnv } from "@/lib/env";
+import type { R2BucketBinding } from "@/lib/storage/r2";
 import app from "@/server/app";
+
+// Extended bindings type including R2
+interface RuntimeBindings extends Env {
+  R2_BUCKET?: R2BucketBinding;
+}
 
 // Cache for validated environment (production only)
 let cachedEnv: Env | null = null;
@@ -78,5 +84,16 @@ export const ALL: APIRoute = async (context) => {
   // Get validated environment bindings for Hono (for Cloudflare Workers)
   const env = getValidatedEnv();
 
-  return app.fetch(request, env);
+  // Get R2 bucket binding from Cloudflare runtime (available in Cloudflare Pages)
+  // @ts-expect-error - Cloudflare runtime bindings are available through locals.runtime
+  const runtime = context.locals?.runtime;
+  const r2Bucket = runtime?.env?.R2_BUCKET as R2BucketBinding | undefined;
+
+  // Combine env vars with runtime bindings
+  const bindings: RuntimeBindings = {
+    ...env,
+    R2_BUCKET: r2Bucket,
+  };
+
+  return app.fetch(request, bindings);
 };

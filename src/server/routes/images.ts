@@ -15,6 +15,7 @@ import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { IMAGE_LIMITS } from "@/lib/env";
 import {
+  deleteImage,
   generateImageKey,
   type R2BucketBinding,
   uploadImage,
@@ -39,14 +40,30 @@ type Variables = {
   userId: string;
 };
 
-// Zod schemas
-const bonsaiIdParamSchema = z.object({
+// Zod schemas (exported for testing)
+export const bonsaiIdParamSchema = z.object({
   bonsaiId: z.string().min(1, "Bonsai ID is required"),
 });
 
-const uploadQuerySchema = z.object({
+export const uploadQuerySchema = z.object({
   caption: z.string().max(500).optional(),
   takenAt: z.string().datetime().optional(),
+});
+
+export const imageIdParamSchema = z.object({
+  bonsaiId: z.string().min(1, "Bonsai ID is required"),
+  imageId: z.string().min(1, "Image ID is required"),
+});
+
+export const reorderSchema = z.object({
+  imageIds: z
+    .array(z.string().min(1))
+    .min(1, "At least one image ID is required"),
+});
+
+export const updateImageSchema = z.object({
+  caption: z.string().max(500).optional(),
+  isPrimary: z.boolean().optional(),
 });
 
 // Create Hono app for image routes
@@ -326,6 +343,325 @@ images.get("/:bonsaiId/images", async (c) => {
     .orderBy(schema.bonsaiImages.sortOrder);
 
   return c.json({ images: imageRecords });
+});
+
+/**
+ * PATCH /api/bonsai/:bonsaiId/images/reorder
+ * Reorder images for a bonsai (updates sortOrder)
+ *
+ * Uses transaction to ensure atomic updates.
+ * Security: Verifies bonsai ownership and that all imageIds belong to the bonsai.
+ */
+images.patch("/:bonsaiId/images/reorder", async (c) => {
+  const db = c.get("db");
+  const userId = c.get("userId");
+
+  // Validate bonsai ID
+  const paramResult = bonsaiIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+  });
+  if (!paramResult.success) {
+    return c.json({ error: "Invalid bonsai ID" }, 400);
+  }
+  const { bonsaiId } = paramResult.data;
+
+  // Parse and validate request body
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const bodyResult = reorderSchema.safeParse(body);
+  if (!bodyResult.success) {
+    return c.json(
+      { error: "Invalid request body", details: bodyResult.error.flatten() },
+      400
+    );
+  }
+  const { imageIds } = bodyResult.data;
+
+  // Verify bonsai ownership (IDOR prevention)
+  const bonsaiRecord = await db
+    .select({ id: schema.bonsai.id })
+    .from(schema.bonsai)
+    .where(
+      and(
+        eq(schema.bonsai.id, bonsaiId),
+        eq(schema.bonsai.userId, userId),
+        sql`${schema.bonsai.deletedAt} IS NULL`
+      )
+    )
+    .limit(1);
+
+  if (bonsaiRecord.length === 0) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
+
+  // Verify all imageIds belong to this bonsai (IDOR prevention)
+  const existingImages = await db
+    .select({ id: schema.bonsaiImages.id })
+    .from(schema.bonsaiImages)
+    .where(eq(schema.bonsaiImages.bonsaiId, bonsaiId));
+
+  const existingImageIds = new Set(existingImages.map((img) => img.id));
+  const invalidIds = imageIds.filter((id) => !existingImageIds.has(id));
+
+  if (invalidIds.length > 0) {
+    return c.json(
+      { error: "Some image IDs do not belong to this bonsai" },
+      400
+    );
+  }
+
+  // Check for duplicates in imageIds
+  const uniqueIds = new Set(imageIds);
+  if (uniqueIds.size !== imageIds.length) {
+    return c.json({ error: "Duplicate image IDs in request" }, 400);
+  }
+
+  // Update sort order using transaction (batch update)
+  try {
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < imageIds.length; i++) {
+        await tx
+          .update(schema.bonsaiImages)
+          .set({ sortOrder: i })
+          .where(
+            and(
+              eq(schema.bonsaiImages.id, imageIds[i]),
+              eq(schema.bonsaiImages.bonsaiId, bonsaiId)
+            )
+          );
+      }
+    });
+  } catch (error) {
+    console.error("Failed to reorder images:", error);
+    return c.json({ error: "Failed to reorder images" }, 500);
+  }
+
+  return c.json({ success: true, imageIds });
+});
+
+/**
+ * PATCH /api/bonsai/:bonsaiId/images/:imageId
+ * Update image metadata (caption, isPrimary)
+ *
+ * When setting isPrimary=true, clears isPrimary from other images.
+ */
+images.patch("/:bonsaiId/images/:imageId", async (c) => {
+  const db = c.get("db");
+  const userId = c.get("userId");
+
+  // Validate params
+  const paramResult = imageIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+    imageId: c.req.param("imageId"),
+  });
+  if (!paramResult.success) {
+    return c.json({ error: "Invalid parameters" }, 400);
+  }
+  const { bonsaiId, imageId } = paramResult.data;
+
+  // Parse and validate request body
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const bodyResult = updateImageSchema.safeParse(body);
+  if (!bodyResult.success) {
+    return c.json(
+      { error: "Invalid request body", details: bodyResult.error.flatten() },
+      400
+    );
+  }
+  const updates = bodyResult.data;
+
+  // Ensure at least one field to update
+  if (updates.caption === undefined && updates.isPrimary === undefined) {
+    return c.json({ error: "No fields to update" }, 400);
+  }
+
+  // Verify bonsai ownership (IDOR prevention)
+  const bonsaiRecord = await db
+    .select({ id: schema.bonsai.id })
+    .from(schema.bonsai)
+    .where(
+      and(
+        eq(schema.bonsai.id, bonsaiId),
+        eq(schema.bonsai.userId, userId),
+        sql`${schema.bonsai.deletedAt} IS NULL`
+      )
+    )
+    .limit(1);
+
+  if (bonsaiRecord.length === 0) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
+
+  // Verify image exists and belongs to this bonsai (IDOR prevention)
+  const imageRecord = await db
+    .select()
+    .from(schema.bonsaiImages)
+    .where(
+      and(
+        eq(schema.bonsaiImages.id, imageId),
+        eq(schema.bonsaiImages.bonsaiId, bonsaiId)
+      )
+    )
+    .limit(1);
+
+  if (imageRecord.length === 0) {
+    return c.json({ error: "Image not found" }, 404);
+  }
+
+  // Update image with transaction (for isPrimary handling)
+  try {
+    await db.transaction(async (tx) => {
+      // If setting isPrimary, clear it from other images first
+      if (updates.isPrimary === true) {
+        await tx
+          .update(schema.bonsaiImages)
+          .set({ isPrimary: false })
+          .where(eq(schema.bonsaiImages.bonsaiId, bonsaiId));
+      }
+
+      // Build update object
+      const updateData: Partial<typeof schema.bonsaiImages.$inferInsert> = {};
+      if (updates.caption !== undefined) {
+        updateData.caption = updates.caption || null;
+      }
+      if (updates.isPrimary !== undefined) {
+        updateData.isPrimary = updates.isPrimary;
+      }
+
+      // Update the target image
+      await tx
+        .update(schema.bonsaiImages)
+        .set(updateData)
+        .where(eq(schema.bonsaiImages.id, imageId));
+    });
+  } catch (error) {
+    console.error("Failed to update image:", error);
+    return c.json({ error: "Failed to update image" }, 500);
+  }
+
+  // Fetch updated image
+  const updatedImage = await db
+    .select()
+    .from(schema.bonsaiImages)
+    .where(eq(schema.bonsaiImages.id, imageId))
+    .limit(1);
+
+  return c.json({ image: updatedImage[0] });
+});
+
+/**
+ * DELETE /api/bonsai/:bonsaiId/images/:imageId
+ * Delete an image
+ *
+ * Deletes from both R2 storage and database.
+ * If deleting the primary image, promotes the next image to primary.
+ */
+images.delete("/:bonsaiId/images/:imageId", async (c) => {
+  const db = c.get("db");
+  const userId = c.get("userId");
+
+  // Validate params
+  const paramResult = imageIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+    imageId: c.req.param("imageId"),
+  });
+  if (!paramResult.success) {
+    return c.json({ error: "Invalid parameters" }, 400);
+  }
+  const { bonsaiId, imageId } = paramResult.data;
+
+  // Verify bonsai ownership (IDOR prevention)
+  const bonsaiRecord = await db
+    .select({ id: schema.bonsai.id })
+    .from(schema.bonsai)
+    .where(
+      and(
+        eq(schema.bonsai.id, bonsaiId),
+        eq(schema.bonsai.userId, userId),
+        sql`${schema.bonsai.deletedAt} IS NULL`
+      )
+    )
+    .limit(1);
+
+  if (bonsaiRecord.length === 0) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
+
+  // Verify image exists and belongs to this bonsai (IDOR prevention)
+  const imageRecord = await db
+    .select()
+    .from(schema.bonsaiImages)
+    .where(
+      and(
+        eq(schema.bonsaiImages.id, imageId),
+        eq(schema.bonsaiImages.bonsaiId, bonsaiId)
+      )
+    )
+    .limit(1);
+
+  if (imageRecord.length === 0) {
+    return c.json({ error: "Image not found" }, 404);
+  }
+
+  const image = imageRecord[0];
+  const wasPrimary = image.isPrimary;
+
+  // Delete from R2 storage
+  const bucket = c.env.R2_BUCKET;
+  try {
+    await deleteImage(bucket, image.imageUrl);
+    // Also delete thumbnail if exists
+    if (image.thumbnailUrl) {
+      await deleteImage(bucket, image.thumbnailUrl);
+    }
+  } catch (error) {
+    console.error("Failed to delete image from R2:", error);
+    // Continue with database deletion even if R2 fails
+    // (orphaned R2 objects can be cleaned up later)
+  }
+
+  // Delete from database and handle primary promotion
+  try {
+    await db.transaction(async (tx) => {
+      // Delete the image
+      await tx
+        .delete(schema.bonsaiImages)
+        .where(eq(schema.bonsaiImages.id, imageId));
+
+      // If it was primary, promote the first remaining image
+      if (wasPrimary) {
+        const remainingImages = await tx
+          .select({ id: schema.bonsaiImages.id })
+          .from(schema.bonsaiImages)
+          .where(eq(schema.bonsaiImages.bonsaiId, bonsaiId))
+          .orderBy(schema.bonsaiImages.sortOrder)
+          .limit(1);
+
+        if (remainingImages.length > 0) {
+          await tx
+            .update(schema.bonsaiImages)
+            .set({ isPrimary: true })
+            .where(eq(schema.bonsaiImages.id, remainingImages[0].id));
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Failed to delete image from database:", error);
+    return c.json({ error: "Failed to delete image" }, 500);
+  }
+
+  return c.json({ success: true, deletedId: imageId });
 });
 
 export default images;

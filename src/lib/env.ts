@@ -25,7 +25,21 @@ const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
+
+  // R2 Storage (optional - can use binding directly)
+  R2_PUBLIC_URL: z.string().url().optional(),
 });
+
+// Image upload constants (static)
+export const IMAGE_LIMITS = {
+  maxFileSizeBytes: 10 * 1024 * 1024, // 10MB
+  maxImagesPerBonsai: 50,
+  maxStoragePerUserBytes: 500 * 1024 * 1024, // 500MB
+  maxPixelDimension: 4000, // 4000x4000 max to prevent decompression bombs
+  allowedMimeTypes: ["image/jpeg", "image/png", "image/webp"] as const,
+  allowedExtensions: [".jpg", ".jpeg", ".png", ".webp"] as const,
+  thumbnailSize: 400, // 400x400px
+};
 
 // Parse and validate environment variables
 export const parseEnv = (env: Record<string, string | undefined>) => {

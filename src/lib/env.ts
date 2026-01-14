@@ -28,14 +28,9 @@ const envSchema = z.object({
 
   // R2 Storage (optional - can use binding directly)
   R2_PUBLIC_URL: z.string().url().optional(),
-
-  // Image Upload Limits
-  MAX_FILE_SIZE_MB: z.coerce.number().positive().default(10),
-  MAX_IMAGES_PER_BONSAI: z.coerce.number().positive().default(50),
-  MAX_STORAGE_PER_USER_MB: z.coerce.number().positive().default(500),
 });
 
-// Image upload constants (derived from env)
+// Image upload constants (static)
 export const IMAGE_LIMITS = {
   maxFileSizeBytes: 10 * 1024 * 1024, // 10MB
   maxImagesPerBonsai: 50,

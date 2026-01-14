@@ -19,7 +19,10 @@ import {
   type R2BucketBinding,
   uploadImage,
 } from "@/lib/storage/r2";
-import { validateImageFile } from "@/lib/storage/validation";
+import {
+  getExtensionFromMimeType,
+  validateImageFile,
+} from "@/lib/storage/validation";
 
 // Types
 type Bindings = {
@@ -186,7 +189,13 @@ images.post("/:bonsaiId/images", async (c) => {
     caption: formData.get("caption")?.toString(),
     takenAt: formData.get("takenAt")?.toString(),
   });
-  const { caption, takenAt } = queryResult.success ? queryResult.data : {};
+  if (!queryResult.success) {
+    return c.json(
+      { error: "Invalid parameters", details: queryResult.error.flatten() },
+      400
+    );
+  }
+  const { caption, takenAt } = queryResult.data;
 
   // Read file data
   const arrayBuffer = await file.arrayBuffer();
@@ -206,7 +215,7 @@ images.post("/:bonsaiId/images", async (c) => {
   const detectedType = validationResult.detectedType!;
 
   // Generate R2 object keys
-  const extension = detectedType.split("/")[1]; // jpeg, png, webp
+  const extension = getExtensionFromMimeType(detectedType).slice(1); // Remove leading dot
   const originalKey = generateImageKey(bonsaiId, "original", extension);
 
   // Upload to R2

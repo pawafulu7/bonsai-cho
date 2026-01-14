@@ -425,10 +425,14 @@ export async function validateImageFile(file: {
     file.data,
     magicResult.detectedType!
   );
-  if (dimensions) {
-    const dimResult = validateDimensions(dimensions);
-    if (!dimResult.valid) return dimResult;
+  if (!dimensions) {
+    return {
+      valid: false,
+      error: "Failed to extract image dimensions. The image may be corrupted.",
+    };
   }
+  const dimResult = validateDimensions(dimensions);
+  if (!dimResult.valid) return dimResult;
 
   return {
     valid: true,

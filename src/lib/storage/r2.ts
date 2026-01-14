@@ -255,10 +255,16 @@ export async function listBonsaiImages(
   type?: "original" | "thumbnail"
 ): Promise<R2Object[]> {
   const prefix = type ? `bonsai/${bonsaiId}/${type}/` : `bonsai/${bonsaiId}/`;
+  const allObjects: R2Object[] = [];
+  let cursor: string | undefined;
 
   try {
-    const result = await bucket.list({ prefix });
-    return result.objects;
+    do {
+      const result = await bucket.list({ prefix, cursor });
+      allObjects.push(...result.objects);
+      cursor = result.truncated ? result.cursor : undefined;
+    } while (cursor);
+    return allObjects;
   } catch (error) {
     console.error("Failed to list bonsai images:", error);
     return [];

@@ -467,6 +467,44 @@ describe("validation", () => {
       expect(result.valid).toBe(false);
       expect(result.error).toContain("exceed maximum");
     });
+
+    it("should reject image when dimension extraction fails", async () => {
+      // Create a minimal JPEG that passes magic byte check but has no valid SOF marker
+      const corruptedJpeg = new Uint8Array([
+        0xff,
+        0xd8, // SOI (Start Of Image)
+        0xff,
+        0xe0, // APP0 marker
+        0x00,
+        0x10, // Length 16
+        0x4a,
+        0x46,
+        0x49,
+        0x46,
+        0x00, // JFIF identifier
+        0x01,
+        0x01, // Version
+        0x00, // Density units
+        0x00,
+        0x01, // X density
+        0x00,
+        0x01, // Y density
+        0x00,
+        0x00, // Thumbnail size
+        0xff,
+        0xd9, // EOI (End Of Image) - no SOF marker!
+      ]);
+
+      const result = await validateImageFile({
+        filename: "corrupted.jpg",
+        contentType: "image/jpeg",
+        size: corruptedJpeg.length,
+        data: corruptedJpeg.buffer,
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.error).toContain("Failed to extract image dimensions");
+    });
   });
 
   describe("getExtensionFromMimeType", () => {

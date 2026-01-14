@@ -22,3 +22,5 @@ export { GalleryLightboxNavigation } from "./GalleryLightboxNavigation";
 export { GallerySkeleton } from "./GallerySkeleton";
 export { GalleryThumbnailItem } from "./GalleryThumbnailItem";
 export { GalleryThumbnailList } from "./GalleryThumbnailList";
+export { SortableGalleryThumbnailItem } from "./SortableGalleryThumbnailItem";
+export { SortableGalleryThumbnailList } from "./SortableGalleryThumbnailList";

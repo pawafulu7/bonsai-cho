@@ -5,7 +5,10 @@ import { timing } from "hono/timing";
 
 import type { R2BucketBinding } from "@/lib/storage/r2";
 import authRoutes from "./routes/auth";
+import bonsaiRoutes from "./routes/bonsai";
+import careLogsRoutes from "./routes/care-logs";
 import imagesRoutes from "./routes/images";
+import mastersRoutes from "./routes/masters";
 
 // Create Hono app with environment bindings type
 type Bindings = {
@@ -103,29 +106,14 @@ const api = app.basePath("/api");
 // Auth routes
 api.route("/auth", authRoutes);
 
-// Species endpoints - Phase 4 implementation
-api.get("/species", async (c) => {
-  return c.json({
-    data: [],
-    message: "Species endpoint - Phase 4 implementation pending",
-  });
-});
+// Master data routes (species, styles, tags)
+api.route("/", mastersRoutes);
 
-// Styles endpoints - Phase 4 implementation
-api.get("/styles", async (c) => {
-  return c.json({
-    data: [],
-    message: "Styles endpoint - Phase 4 implementation pending",
-  });
-});
+// Bonsai CRUD routes
+api.route("/bonsai", bonsaiRoutes);
 
-// Bonsai endpoints - Phase 4 implementation
-api.get("/bonsai", async (c) => {
-  return c.json({
-    data: [],
-    message: "Bonsai endpoint - Phase 4 implementation pending",
-  });
-});
+// Care logs routes (nested under bonsai)
+api.route("/bonsai", careLogsRoutes);
 
 // Bonsai image routes
 api.route("/bonsai", imagesRoutes);

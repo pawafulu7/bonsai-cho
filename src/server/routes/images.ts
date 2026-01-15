@@ -266,7 +266,7 @@ images.post("/:bonsaiId/images", async (c) => {
     const thumbnailBuffer = thumbnailResult.data.buffer.slice(
       thumbnailResult.data.byteOffset,
       thumbnailResult.data.byteOffset + thumbnailResult.data.byteLength
-    );
+    ) as ArrayBuffer;
     const thumbnailUploadResult = await uploadImage(
       bucket,
       thumbnailKey,

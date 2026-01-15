@@ -5,7 +5,24 @@
  * API integration tests would require mocking DB and R2.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Mock thumbnail module to avoid WASM loading issues in Node.js/Vitest
+vi.mock("@/lib/image/thumbnail", () => ({
+  generateThumbnail: vi.fn(),
+  logThumbnailError: vi.fn(),
+  ThumbnailGenerationError: class extends Error {
+    constructor(
+      message: string,
+      public code: string,
+      public metadata?: unknown
+    ) {
+      super(message);
+      this.name = "ThumbnailGenerationError";
+    }
+  },
+}));
+
 import {
   bonsaiIdParamSchema,
   imageIdParamSchema,

@@ -15,6 +15,11 @@ import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { IMAGE_LIMITS } from "@/lib/env";
 import {
+  generateThumbnail,
+  logThumbnailError,
+  ThumbnailGenerationError,
+} from "@/lib/image/thumbnail";
+import {
   deleteImage,
   generateImageKey,
   type R2BucketBinding,
@@ -248,6 +253,43 @@ images.post("/:bonsaiId/images", async (c) => {
     return c.json({ error: "Failed to upload image" }, 500);
   }
 
+  // Generate thumbnail
+  let thumbnailUrl: string | null = null;
+  try {
+    const thumbnailResult = await generateThumbnail(arrayBuffer, {
+      targetSize: IMAGE_LIMITS.thumbnailSize,
+    });
+
+    // Upload thumbnail to R2
+    const thumbnailKey = generateImageKey(bonsaiId, "thumbnail", "webp");
+    const thumbnailUploadResult = await uploadImage(
+      bucket,
+      thumbnailKey,
+      thumbnailResult.data.buffer as ArrayBuffer,
+      "image/webp"
+    );
+
+    if (thumbnailUploadResult) {
+      thumbnailUrl = thumbnailKey;
+    } else {
+      console.error("[ThumbnailGeneration] Failed to upload thumbnail to R2", {
+        bonsaiId,
+        originalKey,
+      });
+    }
+  } catch (error) {
+    // Log structured error and continue without thumbnail (fallback)
+    if (error instanceof ThumbnailGenerationError) {
+      logThumbnailError(error, { bonsaiId, originalKey });
+    } else {
+      console.error("[ThumbnailGeneration] Unexpected error", {
+        bonsaiId,
+        originalKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   // Get next sort order
   const maxSortOrder = await db
     .select({ maxOrder: sql<number>`COALESCE(MAX(sort_order), -1)` })
@@ -267,7 +309,7 @@ images.post("/:bonsaiId/images", async (c) => {
     id: imageId,
     bonsaiId,
     imageUrl: originalKey,
-    thumbnailUrl: null, // Thumbnail generation is Phase 3-B
+    thumbnailUrl,
     caption: caption || null,
     takenAt: takenAt || null,
     sortOrder,
@@ -281,7 +323,7 @@ images.post("/:bonsaiId/images", async (c) => {
       id: imageId,
       bonsaiId,
       imageUrl: originalKey,
-      thumbnailUrl: null,
+      thumbnailUrl,
       caption: caption || null,
       takenAt: takenAt || null,
       sortOrder,

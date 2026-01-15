@@ -13,48 +13,11 @@
 
 import { describe, expect, it } from "vitest";
 
-// Import only the pure TypeScript functions (not WASM-dependent)
-// The ThumbnailGenerationError class is tested separately
-// calculateThumbnailDimensions is a pure function
-
-/**
- * Calculate thumbnail dimensions maintaining aspect ratio
- * (Duplicated here to avoid WASM import issues in tests)
- */
-function calculateThumbnailDimensions(
-  originalWidth: number,
-  originalHeight: number,
-  targetSize: number
-): { width: number; height: number } {
-  if (originalWidth <= targetSize && originalHeight <= targetSize) {
-    return { width: originalWidth, height: originalHeight };
-  }
-
-  const scale = Math.min(
-    targetSize / originalWidth,
-    targetSize / originalHeight
-  );
-
-  const width = Math.max(1, Math.round(originalWidth * scale));
-  const height = Math.max(1, Math.round(originalHeight * scale));
-
-  return { width, height };
-}
-
-/**
- * Thumbnail generation error class
- * (Duplicated here to avoid WASM import issues in tests)
- */
-class ThumbnailGenerationError extends Error {
-  constructor(
-    message: string,
-    public readonly code: string,
-    public readonly metadata?: Record<string, unknown>
-  ) {
-    super(message);
-    this.name = "ThumbnailGenerationError";
-  }
-}
+// Import pure TypeScript functions from thumbnail-utils (no WASM dependency)
+import {
+  calculateThumbnailDimensions,
+  ThumbnailGenerationError,
+} from "./thumbnail-utils";
 
 describe("Thumbnail Generation", () => {
   describe("calculateThumbnailDimensions", () => {

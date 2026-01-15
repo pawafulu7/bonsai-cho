@@ -14,6 +14,23 @@
 
 import { PhotonImage, resize, SamplingFilter } from "@cf-wasm/photon/workerd";
 
+export type {
+  ThumbnailErrorCode,
+  ThumbnailErrorMetadata,
+} from "./thumbnail-utils";
+// Re-export pure utilities for external use
+export {
+  calculateThumbnailDimensions,
+  logThumbnailError,
+  ThumbnailGenerationError,
+} from "./thumbnail-utils";
+
+// Import for internal use
+import {
+  calculateThumbnailDimensions,
+  ThumbnailGenerationError,
+} from "./thumbnail-utils";
+
 // Constants
 const MAX_PIXEL_COUNT = 16_000_000; // 16M pixels (e.g., 4000x4000)
 // Note: Quality setting is reserved for future use when @cf-wasm/photon supports it
@@ -25,7 +42,7 @@ const MAX_PIXEL_COUNT = 16_000_000; // 16M pixels (e.g., 4000x4000)
 export interface ThumbnailOptions {
   /** Target dimension (width or height, whichever is larger) */
   targetSize: number;
-  /** WebP quality (0-100, default: 85) */
+  /** WebP quality (0-100, default: 85) - reserved for future use */
   quality?: number;
 }
 
@@ -41,66 +58,6 @@ export interface ThumbnailResult {
   height: number;
   /** Output format (always "webp") */
   format: "webp";
-}
-
-/**
- * Structured error class for thumbnail generation failures
- */
-export class ThumbnailGenerationError extends Error {
-  constructor(
-    message: string,
-    public readonly code: ThumbnailErrorCode,
-    public readonly metadata?: ThumbnailErrorMetadata
-  ) {
-    super(message);
-    this.name = "ThumbnailGenerationError";
-  }
-}
-
-export type ThumbnailErrorCode =
-  | "INVALID_IMAGE"
-  | "PIXEL_COUNT_EXCEEDED"
-  | "RESIZE_FAILED"
-  | "ENCODE_FAILED"
-  | "MEMORY_ERROR";
-
-export interface ThumbnailErrorMetadata {
-  inputSize?: number;
-  width?: number;
-  height?: number;
-  pixelCount?: number;
-  originalError?: string;
-}
-
-/**
- * Calculate thumbnail dimensions maintaining aspect ratio
- *
- * @param originalWidth - Original image width
- * @param originalHeight - Original image height
- * @param targetSize - Target maximum dimension
- * @returns Calculated dimensions
- */
-export function calculateThumbnailDimensions(
-  originalWidth: number,
-  originalHeight: number,
-  targetSize: number
-): { width: number; height: number } {
-  // If image is already smaller than target, return original dimensions
-  if (originalWidth <= targetSize && originalHeight <= targetSize) {
-    return { width: originalWidth, height: originalHeight };
-  }
-
-  // Calculate scale factor based on the larger dimension
-  const scale = Math.min(
-    targetSize / originalWidth,
-    targetSize / originalHeight
-  );
-
-  // Calculate new dimensions, ensuring at least 1px
-  const width = Math.max(1, Math.round(originalWidth * scale));
-  const height = Math.max(1, Math.round(originalHeight * scale));
-
-  return { width, height };
 }
 
 /**
@@ -244,22 +201,4 @@ export async function generateThumbnail(
       }
     }
   }
-}
-
-/**
- * Log structured thumbnail generation error
- *
- * @param error - The error to log
- * @param context - Additional context (e.g., bonsaiId)
- */
-export function logThumbnailError(
-  error: ThumbnailGenerationError,
-  context?: Record<string, unknown>
-): void {
-  console.error("[ThumbnailGeneration]", {
-    code: error.code,
-    message: error.message,
-    metadata: error.metadata,
-    ...context,
-  });
 }

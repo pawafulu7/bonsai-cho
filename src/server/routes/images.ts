@@ -261,11 +261,16 @@ images.post("/:bonsaiId/images", async (c) => {
     });
 
     // Upload thumbnail to R2
+    // Ensure we only upload the actual thumbnail data, not the entire underlying buffer
     const thumbnailKey = generateImageKey(bonsaiId, "thumbnail", "webp");
+    const thumbnailBuffer = thumbnailResult.data.buffer.slice(
+      thumbnailResult.data.byteOffset,
+      thumbnailResult.data.byteOffset + thumbnailResult.data.byteLength
+    );
     const thumbnailUploadResult = await uploadImage(
       bucket,
       thumbnailKey,
-      thumbnailResult.data.buffer as ArrayBuffer,
+      thumbnailBuffer,
       "image/webp"
     );
 

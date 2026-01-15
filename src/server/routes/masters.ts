@@ -5,7 +5,7 @@
  * These are read-only endpoints that don't require authentication.
  */
 
-import { eq } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { type Database, getDb } from "@/lib/db/client";
@@ -109,9 +109,8 @@ masters.get("/tags", async (c) => {
         usageCount: schema.tags.usageCount,
       })
       .from(schema.tags)
-      .where(eq(schema.tags.usageCount, schema.tags.usageCount)) // Filter out unused tags is handled by ordering
-      .orderBy(schema.tags.usageCount)
-      .limit(50); // Top 50 popular tags
+      .orderBy(desc(schema.tags.usageCount))
+      .limit(50); // Top 50 popular tags by usage count (descending)
 
     // Set cache headers (1 hour)
     c.header("Cache-Control", "public, max-age=3600");

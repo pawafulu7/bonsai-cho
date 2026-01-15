@@ -169,12 +169,13 @@ careLogs.get("/:bonsaiId/care-logs", async (c) => {
   }
 
   try {
-    // Cursor condition for pagination
+    // Cursor condition for pagination (using performedAt to match orderBy)
+    // Note: cursorData.createdAt actually stores performedAt value for care logs
     const cursorCondition = cursorData
       ? or(
-          lt(schema.careLogs.createdAt, cursorData.createdAt),
+          lt(schema.careLogs.performedAt, cursorData.createdAt),
           and(
-            eq(schema.careLogs.createdAt, cursorData.createdAt),
+            eq(schema.careLogs.performedAt, cursorData.createdAt),
             lt(schema.careLogs.id, cursorData.id)
           )
         )
@@ -217,11 +218,11 @@ careLogs.get("/:bonsaiId/care-logs", async (c) => {
       createdAt: log.createdAt,
     }));
 
-    // Generate next cursor
+    // Generate next cursor (using performedAt to match orderBy)
     const nextCursor =
       hasMore && results.length > 0
         ? encodeCursor({
-            createdAt: results[results.length - 1].createdAt,
+            createdAt: results[results.length - 1].performedAt, // Use performedAt as cursor key
             id: results[results.length - 1].id,
           })
         : null;

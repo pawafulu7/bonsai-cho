@@ -125,6 +125,10 @@ export const createBonsaiSchema = z.object({
 
 /**
  * Update bonsai request body (partial)
+ *
+ * Note: partial() preserves default values from createBonsaiSchema.
+ * Empty object {} will be parsed as { isPublic: true } due to isPublic's default(true).
+ * This is intentional - API handler performs additional validation as needed.
  */
 export const updateBonsaiSchema = createBonsaiSchema
   .partial()

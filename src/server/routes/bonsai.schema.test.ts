@@ -283,7 +283,14 @@ describe("bonsai.schema", () => {
 
   describe("careTypeEnum", () => {
     it("should accept valid care types", () => {
-      const validTypes = ["watering", "fertilizing", "pruning", "repotting", "wiring", "other"];
+      const validTypes = [
+        "watering",
+        "fertilizing",
+        "pruning",
+        "repotting",
+        "wiring",
+        "other",
+      ];
 
       for (const type of validTypes) {
         const result = careTypeEnum.safeParse(type);
@@ -356,7 +363,7 @@ describe("bonsai.schema", () => {
       const result = createCareLogSchema.safeParse({
         careType: "watering",
         performedAt: "2024-01-15T10:30:00.000Z",
-        imageUrl: "https://example.com/" + "a".repeat(500),
+        imageUrl: `https://example.com/${"a".repeat(500)}`,
       });
 
       expect(result.success).toBe(false);

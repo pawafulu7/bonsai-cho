@@ -35,19 +35,25 @@ export interface Cursor {
 /**
  * Encode cursor for pagination
  *
+ * Uses encodeURIComponent + btoa pattern for UTF-8 support in Cloudflare Workers.
+ * This handles non-ASCII characters (e.g., Japanese) safely.
+ *
  * @param cursor - Cursor object with createdAt and id
  * @returns Base64url encoded cursor string
  */
 export function encodeCursor(cursor: Cursor): string {
   const payload = JSON.stringify(cursor);
-  // Use btoa for Cloudflare Workers compatibility
-  const base64 = btoa(payload);
+  // Handle UTF-8 characters: encodeURIComponent converts to percent-encoded UTF-8,
+  // then unescape converts to Latin-1 byte string that btoa can process
+  const base64 = btoa(unescape(encodeURIComponent(payload)));
   // Convert to base64url format
   return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
 /**
  * Decode cursor from pagination
+ *
+ * Reverses the UTF-8 safe encoding from encodeCursor.
  *
  * @param encoded - Base64url encoded cursor string
  * @returns Cursor object or null if invalid
@@ -60,7 +66,8 @@ export function decodeCursor(encoded: string): Cursor | null {
     while (base64.length % 4) {
       base64 += "=";
     }
-    const payload = atob(base64);
+    // Reverse UTF-8 encoding: atob gives Latin-1 string, escape + decodeURIComponent restores UTF-8
+    const payload = decodeURIComponent(escape(atob(base64)));
     const parsed = JSON.parse(payload);
 
     if (typeof parsed.createdAt !== "string" || typeof parsed.id !== "string") {

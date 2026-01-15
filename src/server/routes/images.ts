@@ -29,6 +29,10 @@ import {
   getExtensionFromMimeType,
   validateImageFile,
 } from "@/lib/storage/validation";
+import { bonsaiIdParamSchema } from "./bonsai.schema";
+
+// Re-export for backward compatibility
+export { bonsaiIdParamSchema };
 
 // Types
 type Bindings = {
@@ -44,11 +48,6 @@ type Variables = {
   db: Database;
   userId: string;
 };
-
-// Zod schemas (exported for testing)
-export const bonsaiIdParamSchema = z.object({
-  bonsaiId: z.string().min(1, "Bonsai ID is required"),
-});
 
 export const uploadQuerySchema = z.object({
   caption: z.string().max(500).optional(),

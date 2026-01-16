@@ -1,5 +1,11 @@
 import { relations, sql } from "drizzle-orm";
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import {
+  check,
+  index,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 import { bonsai } from "./bonsai";
 import { users } from "./users";
 
@@ -69,7 +75,6 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 }));
 
 // Follows - User following relationships
-// Note: CHECK constraint (follower_id <> following_id) is added in migration SQL
 export const follows = sqliteTable(
   "follows",
   {
@@ -83,6 +88,11 @@ export const follows = sqliteTable(
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
   },
   (table) => [
+    // Prevent self-follow at database level
+    check(
+      "ck_follows_no_self_follow",
+      sql`${table.followerId} <> ${table.followingId}`
+    ),
     uniqueIndex("uq_follows").on(table.followerId, table.followingId),
     index("idx_follows_follower").on(table.followerId),
     index("idx_follows_following").on(table.followingId),

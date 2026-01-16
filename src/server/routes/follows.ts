@@ -118,8 +118,11 @@ async function verifyUserExists(
 // Helper: Update follower/following counts
 // ============================================================================
 
+// Common interface for Database and Transaction operations
+type DbOperations = Pick<Database, "update">;
+
 async function updateFollowerCount(
-  db: Database,
+  db: DbOperations,
   userId: string
 ): Promise<number> {
   // Use subquery to get accurate count
@@ -137,7 +140,7 @@ async function updateFollowerCount(
 }
 
 async function updateFollowingCount(
-  db: Database,
+  db: DbOperations,
   userId: string
 ): Promise<number> {
   // Use subquery to get accurate count
@@ -196,24 +199,29 @@ follows.post("/:userId/follow", async (c) => {
   }
 
   try {
-    // Insert follow (idempotent - ignore if already exists)
-    await db
-      .insert(schema.follows)
-      .values({
-        id: generateId(),
-        followerId: currentUserId,
-        followingId: targetUserId,
-        createdAt: new Date().toISOString(),
-      })
-      .onConflictDoNothing();
+    // Use transaction to ensure atomic operation
+    const result = await db.transaction(async (tx) => {
+      // Insert follow (idempotent - ignore if already exists)
+      await tx
+        .insert(schema.follows)
+        .values({
+          id: generateId(),
+          followerId: currentUserId,
+          followingId: targetUserId,
+          createdAt: new Date().toISOString(),
+        })
+        .onConflictDoNothing();
 
-    // Update counters
-    const followerCount = await updateFollowerCount(db, targetUserId);
-    await updateFollowingCount(db, currentUserId);
+      // Update counters within transaction
+      const followerCount = await updateFollowerCount(tx, targetUserId);
+      await updateFollowingCount(tx, currentUserId);
+
+      return { followerCount };
+    });
 
     const response: FollowResponse = {
       following: true,
-      followerCount,
+      followerCount: result.followerCount,
     };
 
     return c.json(response, 201);
@@ -260,23 +268,28 @@ follows.delete("/:userId/follow", async (c) => {
   }
 
   try {
-    // Delete follow (idempotent - no error if doesn't exist)
-    await db
-      .delete(schema.follows)
-      .where(
-        and(
-          eq(schema.follows.followerId, currentUserId),
-          eq(schema.follows.followingId, targetUserId)
-        )
-      );
+    // Use transaction to ensure atomic operation
+    const result = await db.transaction(async (tx) => {
+      // Delete follow (idempotent - no error if doesn't exist)
+      await tx
+        .delete(schema.follows)
+        .where(
+          and(
+            eq(schema.follows.followerId, currentUserId),
+            eq(schema.follows.followingId, targetUserId)
+          )
+        );
 
-    // Update counters
-    const followerCount = await updateFollowerCount(db, targetUserId);
-    await updateFollowingCount(db, currentUserId);
+      // Update counters within transaction
+      const followerCount = await updateFollowerCount(tx, targetUserId);
+      await updateFollowingCount(tx, currentUserId);
+
+      return { followerCount };
+    });
 
     const response: FollowResponse = {
       following: false,
-      followerCount,
+      followerCount: result.followerCount,
     };
 
     return c.json(response, 200);

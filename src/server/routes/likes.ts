@@ -376,11 +376,14 @@ likes.get("/:bonsaiId/likes", async (c) => {
     const hasMore = results.length > limit;
     const data = hasMore ? results.slice(0, limit) : results;
 
-    // Get total count
+    // Get total count (excluding deleted users for consistency)
     const [countResult] = await db
       .select({ total: count() })
       .from(schema.likes)
-      .where(eq(schema.likes.bonsaiId, bonsaiId));
+      .innerJoin(schema.users, eq(schema.likes.userId, schema.users.id))
+      .where(
+        and(eq(schema.likes.bonsaiId, bonsaiId), isNull(schema.users.deletedAt))
+      );
 
     // Check if current user has liked
     let isLiked = false;

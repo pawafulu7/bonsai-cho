@@ -123,10 +123,11 @@ async function updateFollowerCount(
   userId: string
 ): Promise<number> {
   // Use subquery to get accurate count
+  // Exclude deleted followers for consistency with list display
   const [result] = await db
     .update(schema.users)
     .set({
-      followerCount: sql`(SELECT COUNT(*) FROM ${schema.follows} WHERE ${schema.follows.followingId} = ${userId})`,
+      followerCount: sql`(SELECT COUNT(*) FROM ${schema.follows} INNER JOIN ${schema.users} AS follower ON ${schema.follows.followerId} = follower.id WHERE ${schema.follows.followingId} = ${userId} AND follower.deleted_at IS NULL)`,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.users.id, userId))
@@ -140,10 +141,11 @@ async function updateFollowingCount(
   userId: string
 ): Promise<number> {
   // Use subquery to get accurate count
+  // Exclude deleted following users for consistency with list display
   const [result] = await db
     .update(schema.users)
     .set({
-      followingCount: sql`(SELECT COUNT(*) FROM ${schema.follows} WHERE ${schema.follows.followerId} = ${userId})`,
+      followingCount: sql`(SELECT COUNT(*) FROM ${schema.follows} INNER JOIN ${schema.users} AS following ON ${schema.follows.followingId} = following.id WHERE ${schema.follows.followerId} = ${userId} AND following.deleted_at IS NULL)`,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.users.id, userId))

@@ -140,10 +140,11 @@ async function updateLikeCount(
   bonsaiId: string
 ): Promise<number> {
   // Use subquery to get accurate count (prevents race conditions)
+  // Exclude likes from deleted users for consistency with list display
   const [result] = await db
     .update(schema.bonsai)
     .set({
-      likeCount: sql`(SELECT COUNT(*) FROM ${schema.likes} WHERE ${schema.likes.bonsaiId} = ${bonsaiId})`,
+      likeCount: sql`(SELECT COUNT(*) FROM ${schema.likes} INNER JOIN ${schema.users} ON ${schema.likes.userId} = ${schema.users.id} WHERE ${schema.likes.bonsaiId} = ${bonsaiId} AND ${schema.users.deletedAt} IS NULL)`,
       updatedAt: new Date().toISOString(),
     })
     .where(eq(schema.bonsai.id, bonsaiId))

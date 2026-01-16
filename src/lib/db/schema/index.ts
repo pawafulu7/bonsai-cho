@@ -27,4 +27,13 @@ export {
 } from "./bonsai";
 // Master Data
 export { species, styles } from "./masters";
+// Social Features (likes, comments, follows)
+export {
+  comments,
+  commentsRelations,
+  follows,
+  followsRelations,
+  likes,
+  likesRelations,
+} from "./social";
 export { sessions, sessionsRelations, users, usersRelations } from "./users";

@@ -1,5 +1,5 @@
 import { relations, sql } from "drizzle-orm";
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable(
   "users",
@@ -12,6 +12,8 @@ export const users = sqliteTable(
     bio: text("bio"),
     location: text("location"),
     website: text("website"),
+    followerCount: integer("follower_count").notNull().default(0),
+    followingCount: integer("following_count").notNull().default(0),
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
     // Note: SQLite doesn't support auto-update timestamps.
     // Update paths must explicitly set updatedAt = new Date().toISOString()

@@ -59,3 +59,22 @@ export type Env = z.infer<typeof envSchema>;
 
 // Export schema for reference
 export { envSchema };
+
+/**
+ * Cloudflare Workers environment detection
+ *
+ * Checks if the code is running in Cloudflare Workers by examining
+ * the navigator.userAgent, which contains "Cloudflare-Workers" in Workers environment.
+ *
+ * This is used to conditionally load WASM modules that are only compatible
+ * with Cloudflare Workers (e.g., @cf-wasm/photon/workerd).
+ *
+ * @returns true if running in Cloudflare Workers, false otherwise (Node.js, browser, etc.)
+ */
+export function isCloudflareWorkersEnv(): boolean {
+  return (
+    typeof navigator !== "undefined" &&
+    typeof navigator.userAgent === "string" &&
+    navigator.userAgent.includes("Cloudflare-Workers")
+  );
+}

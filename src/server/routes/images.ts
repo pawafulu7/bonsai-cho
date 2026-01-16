@@ -13,12 +13,7 @@ import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
 import { parseSessionCookie, validateSession } from "@/lib/auth/session";
 import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
-import { IMAGE_LIMITS } from "@/lib/env";
-import {
-  generateThumbnail,
-  logThumbnailError,
-  ThumbnailGenerationError,
-} from "@/lib/image/thumbnail";
+import { IMAGE_LIMITS, isCloudflareWorkersEnv } from "@/lib/env";
 import {
   deleteImage,
   generateImageKey,
@@ -252,46 +247,67 @@ images.post("/:bonsaiId/images", async (c) => {
     return c.json({ error: "Failed to upload image" }, 500);
   }
 
-  // Generate thumbnail
+  // Generate thumbnail (only in Cloudflare Workers environment)
+  // @cf-wasm/photon/workerd requires WASM which is not supported in Node.js
   let thumbnailUrl: string | null = null;
-  try {
-    const thumbnailResult = await generateThumbnail(arrayBuffer, {
-      targetSize: IMAGE_LIMITS.thumbnailSize,
+
+  if (isCloudflareWorkersEnv()) {
+    try {
+      // Dynamic import to avoid WASM loading at startup in Node.js
+      const { generateThumbnail } = await import("@/lib/image/thumbnail");
+
+      const thumbnailResult = await generateThumbnail(arrayBuffer, {
+        targetSize: IMAGE_LIMITS.thumbnailSize,
+      });
+
+      // Upload thumbnail to R2
+      // Ensure we only upload the actual thumbnail data, not the entire underlying buffer
+      const thumbnailKey = generateImageKey(bonsaiId, "thumbnail", "webp");
+      const thumbnailBuffer = thumbnailResult.data.buffer.slice(
+        thumbnailResult.data.byteOffset,
+        thumbnailResult.data.byteOffset + thumbnailResult.data.byteLength
+      ) as ArrayBuffer;
+      const thumbnailUploadResult = await uploadImage(
+        bucket,
+        thumbnailKey,
+        thumbnailBuffer,
+        "image/webp"
+      );
+
+      if (thumbnailUploadResult) {
+        thumbnailUrl = thumbnailKey;
+      } else {
+        console.error(
+          "[ThumbnailGeneration] Failed to upload thumbnail to R2",
+          {
+            bonsaiId,
+            originalKey,
+          }
+        );
+      }
+    } catch (error) {
+      // Log structured error and continue without thumbnail (fallback)
+      // Re-import for error type checking (already loaded if we got here)
+      const { logThumbnailError, ThumbnailGenerationError } = await import(
+        "@/lib/image/thumbnail"
+      );
+
+      if (error instanceof ThumbnailGenerationError) {
+        logThumbnailError(error, { bonsaiId, originalKey });
+      } else {
+        console.error("[ThumbnailGeneration] Unexpected error", {
+          bonsaiId,
+          originalKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  } else {
+    // Node.js environment: skip thumbnail generation
+    console.info("[ThumbnailGeneration] Skipped in non-Workers environment", {
+      bonsaiId,
+      originalKey,
     });
-
-    // Upload thumbnail to R2
-    // Ensure we only upload the actual thumbnail data, not the entire underlying buffer
-    const thumbnailKey = generateImageKey(bonsaiId, "thumbnail", "webp");
-    const thumbnailBuffer = thumbnailResult.data.buffer.slice(
-      thumbnailResult.data.byteOffset,
-      thumbnailResult.data.byteOffset + thumbnailResult.data.byteLength
-    ) as ArrayBuffer;
-    const thumbnailUploadResult = await uploadImage(
-      bucket,
-      thumbnailKey,
-      thumbnailBuffer,
-      "image/webp"
-    );
-
-    if (thumbnailUploadResult) {
-      thumbnailUrl = thumbnailKey;
-    } else {
-      console.error("[ThumbnailGeneration] Failed to upload thumbnail to R2", {
-        bonsaiId,
-        originalKey,
-      });
-    }
-  } catch (error) {
-    // Log structured error and continue without thumbnail (fallback)
-    if (error instanceof ThumbnailGenerationError) {
-      logThumbnailError(error, { bonsaiId, originalKey });
-    } else {
-      console.error("[ThumbnailGeneration] Unexpected error", {
-        bonsaiId,
-        originalKey,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
   }
 
   // Get next sort order

@@ -16,24 +16,24 @@ import { decodeCursor, encodeCursor, notDeleted } from "@/lib/db/helpers";
 import * as schema from "@/lib/db/schema";
 
 import {
-	type LikeListResponse,
-	type LikeResponse,
-	type UserSummary,
-	bonsaiIdParamSchema,
-	paginationQuerySchema,
+  bonsaiIdParamSchema,
+  type LikeListResponse,
+  type LikeResponse,
+  paginationQuerySchema,
+  type UserSummary,
 } from "./social.schema";
 
 // Types
 type Bindings = {
-	TURSO_DATABASE_URL: string;
-	TURSO_AUTH_TOKEN: string;
-	PUBLIC_APP_URL: string;
-	SESSION_SECRET: string;
+  TURSO_DATABASE_URL: string;
+  TURSO_AUTH_TOKEN: string;
+  PUBLIC_APP_URL: string;
+  SESSION_SECRET: string;
 };
 
 type Variables = {
-	db: Database;
-	userId: string | null;
+  db: Database;
+  userId: string | null;
 };
 
 // Create Hono app for likes routes
@@ -45,56 +45,56 @@ const likes = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // Database middleware
 likes.use("*", async (c, next) => {
-	const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
-	c.set("db", db);
-	await next();
+  const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
+  c.set("db", db);
+  await next();
 });
 
 // Optional auth middleware - sets userId if authenticated, null otherwise
 likes.use("*", async (c, next) => {
-	const db = c.get("db");
-	const cookieHeader = c.req.header("Cookie") || "";
-	const sessionToken = parseSessionCookie(cookieHeader);
+  const db = c.get("db");
+  const cookieHeader = c.req.header("Cookie") || "";
+  const sessionToken = parseSessionCookie(cookieHeader);
 
-	if (sessionToken) {
-		const result = await validateSession(db, sessionToken);
-		if (result) {
-			c.set("userId", result.user.id);
-			await next();
-			return;
-		}
-	}
+  if (sessionToken) {
+    const result = await validateSession(db, sessionToken);
+    if (result) {
+      c.set("userId", result.user.id);
+      await next();
+      return;
+    }
+  }
 
-	c.set("userId", null);
-	await next();
+  c.set("userId", null);
+  await next();
 });
 
 // CSRF middleware for mutation requests
 const csrfMiddleware = async (
-	c: Parameters<Parameters<typeof likes.use>[1]>[0],
-	next: () => Promise<void>,
+  c: Parameters<Parameters<typeof likes.use>[1]>[0],
+  next: () => Promise<void>
 ) => {
-	const method = c.req.method;
-	if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
-		return next();
-	}
+  const method = c.req.method;
+  if (method === "GET" || method === "HEAD" || method === "OPTIONS") {
+    return next();
+  }
 
-	const cookieHeader = c.req.header("Cookie") || "";
-	const csrfCookie = parseCsrfCookie(cookieHeader);
-	const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  const cookieHeader = c.req.header("Cookie") || "";
+  const csrfCookie = parseCsrfCookie(cookieHeader);
+  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
 
-	if (!validateCsrfToken(csrfCookie, csrfHeader)) {
-		return c.json({ error: "Invalid CSRF token" }, 403);
-	}
+  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
+    return c.json({ error: "Invalid CSRF token" }, 403);
+  }
 
-	return next();
+  return next();
 };
 
 likes.use("*", csrfMiddleware);
 
 // Helper function to require authentication
 function requireAuth(userId: string | null): userId is string {
-	return userId !== null;
+  return userId !== null;
 }
 
 // ============================================================================
@@ -102,51 +102,54 @@ function requireAuth(userId: string | null): userId is string {
 // ============================================================================
 
 async function verifyBonsaiAccess(
-	db: Database,
-	bonsaiId: string,
-	userId: string | null,
+  db: Database,
+  bonsaiId: string,
+  userId: string | null
 ): Promise<
-	| { allowed: true; bonsai: { id: string; userId: string; isPublic: boolean } }
-	| { allowed: false; status: 404 }
+  | { allowed: true; bonsai: { id: string; userId: string; isPublic: boolean } }
+  | { allowed: false; status: 404 }
 > {
-	const [targetBonsai] = await db
-		.select({
-			id: schema.bonsai.id,
-			userId: schema.bonsai.userId,
-			isPublic: schema.bonsai.isPublic,
-		})
-		.from(schema.bonsai)
-		.where(and(eq(schema.bonsai.id, bonsaiId), notDeleted(schema.bonsai)))
-		.limit(1);
+  const [targetBonsai] = await db
+    .select({
+      id: schema.bonsai.id,
+      userId: schema.bonsai.userId,
+      isPublic: schema.bonsai.isPublic,
+    })
+    .from(schema.bonsai)
+    .where(and(eq(schema.bonsai.id, bonsaiId), notDeleted(schema.bonsai)))
+    .limit(1);
 
-	if (!targetBonsai) {
-		return { allowed: false, status: 404 };
-	}
+  if (!targetBonsai) {
+    return { allowed: false, status: 404 };
+  }
 
-	// Non-public bonsai: only owner can access
-	if (!targetBonsai.isPublic && targetBonsai.userId !== userId) {
-		return { allowed: false, status: 404 };
-	}
+  // Non-public bonsai: only owner can access
+  if (!targetBonsai.isPublic && targetBonsai.userId !== userId) {
+    return { allowed: false, status: 404 };
+  }
 
-	return { allowed: true, bonsai: targetBonsai };
+  return { allowed: true, bonsai: targetBonsai };
 }
 
 // ============================================================================
 // Helper: Update like count
 // ============================================================================
 
-async function updateLikeCount(db: Database, bonsaiId: string): Promise<number> {
-	// Use subquery to get accurate count (prevents race conditions)
-	const [result] = await db
-		.update(schema.bonsai)
-		.set({
-			likeCount: sql`(SELECT COUNT(*) FROM ${schema.likes} WHERE ${schema.likes.bonsaiId} = ${bonsaiId})`,
-			updatedAt: new Date().toISOString(),
-		})
-		.where(eq(schema.bonsai.id, bonsaiId))
-		.returning({ likeCount: schema.bonsai.likeCount });
+async function updateLikeCount(
+  db: Database,
+  bonsaiId: string
+): Promise<number> {
+  // Use subquery to get accurate count (prevents race conditions)
+  const [result] = await db
+    .update(schema.bonsai)
+    .set({
+      likeCount: sql`(SELECT COUNT(*) FROM ${schema.likes} WHERE ${schema.likes.bonsaiId} = ${bonsaiId})`,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(schema.bonsai.id, bonsaiId))
+    .returning({ likeCount: schema.bonsai.likeCount });
 
-	return result?.likeCount ?? 0;
+  return result?.likeCount ?? 0;
 }
 
 // ============================================================================
@@ -154,62 +157,62 @@ async function updateLikeCount(db: Database, bonsaiId: string): Promise<number> 
 // ============================================================================
 
 likes.post("/:bonsaiId/likes", async (c) => {
-	const db = c.get("db");
-	const userId = c.get("userId");
+  const db = c.get("db");
+  const userId = c.get("userId");
 
-	// Require authentication
-	if (!requireAuth(userId)) {
-		return c.json({ error: "Unauthorized" }, 401);
-	}
+  // Require authentication
+  if (!requireAuth(userId)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
-	// Validate bonsaiId
-	const paramResult = bonsaiIdParamSchema.safeParse({
-		bonsaiId: c.req.param("bonsaiId"),
-	});
+  // Validate bonsaiId
+  const paramResult = bonsaiIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+  });
 
-	if (!paramResult.success) {
-		return c.json(
-			{
-				error: "Invalid bonsai ID",
-				details: paramResult.error.flatten().fieldErrors,
-			},
-			400,
-		);
-	}
+  if (!paramResult.success) {
+    return c.json(
+      {
+        error: "Invalid bonsai ID",
+        details: paramResult.error.flatten().fieldErrors,
+      },
+      400
+    );
+  }
 
-	const { bonsaiId } = paramResult.data;
+  const { bonsaiId } = paramResult.data;
 
-	// Verify bonsai access
-	const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
-	if (!accessResult.allowed) {
-		return c.json({ error: "Bonsai not found" }, 404);
-	}
+  // Verify bonsai access
+  const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
+  if (!accessResult.allowed) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
 
-	try {
-		// Insert like (idempotent - ignore if already exists)
-		await db
-			.insert(schema.likes)
-			.values({
-				id: generateId(),
-				userId,
-				bonsaiId,
-				createdAt: new Date().toISOString(),
-			})
-			.onConflictDoNothing();
+  try {
+    // Insert like (idempotent - ignore if already exists)
+    await db
+      .insert(schema.likes)
+      .values({
+        id: generateId(),
+        userId,
+        bonsaiId,
+        createdAt: new Date().toISOString(),
+      })
+      .onConflictDoNothing();
 
-		// Update like count
-		const likeCount = await updateLikeCount(db, bonsaiId);
+    // Update like count
+    const likeCount = await updateLikeCount(db, bonsaiId);
 
-		const response: LikeResponse = {
-			liked: true,
-			likeCount,
-		};
+    const response: LikeResponse = {
+      liked: true,
+      likeCount,
+    };
 
-		return c.json(response, 201);
-	} catch (error) {
-		console.error("Error adding like:", error);
-		return c.json({ error: "Failed to add like" }, 500);
-	}
+    return c.json(response, 201);
+  } catch (error) {
+    console.error("Error adding like:", error);
+    return c.json({ error: "Failed to add like" }, 500);
+  }
 });
 
 // ============================================================================
@@ -217,58 +220,61 @@ likes.post("/:bonsaiId/likes", async (c) => {
 // ============================================================================
 
 likes.delete("/:bonsaiId/likes", async (c) => {
-	const db = c.get("db");
-	const userId = c.get("userId");
+  const db = c.get("db");
+  const userId = c.get("userId");
 
-	// Require authentication
-	if (!requireAuth(userId)) {
-		return c.json({ error: "Unauthorized" }, 401);
-	}
+  // Require authentication
+  if (!requireAuth(userId)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
 
-	// Validate bonsaiId
-	const paramResult = bonsaiIdParamSchema.safeParse({
-		bonsaiId: c.req.param("bonsaiId"),
-	});
+  // Validate bonsaiId
+  const paramResult = bonsaiIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+  });
 
-	if (!paramResult.success) {
-		return c.json(
-			{
-				error: "Invalid bonsai ID",
-				details: paramResult.error.flatten().fieldErrors,
-			},
-			400,
-		);
-	}
+  if (!paramResult.success) {
+    return c.json(
+      {
+        error: "Invalid bonsai ID",
+        details: paramResult.error.flatten().fieldErrors,
+      },
+      400
+    );
+  }
 
-	const { bonsaiId } = paramResult.data;
+  const { bonsaiId } = paramResult.data;
 
-	// Verify bonsai access
-	const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
-	if (!accessResult.allowed) {
-		return c.json({ error: "Bonsai not found" }, 404);
-	}
+  // Verify bonsai access
+  const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
+  if (!accessResult.allowed) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
 
-	try {
-		// Delete like (idempotent - no error if doesn't exist)
-		await db
-			.delete(schema.likes)
-			.where(
-				and(eq(schema.likes.userId, userId), eq(schema.likes.bonsaiId, bonsaiId)),
-			);
+  try {
+    // Delete like (idempotent - no error if doesn't exist)
+    await db
+      .delete(schema.likes)
+      .where(
+        and(
+          eq(schema.likes.userId, userId),
+          eq(schema.likes.bonsaiId, bonsaiId)
+        )
+      );
 
-		// Update like count
-		const likeCount = await updateLikeCount(db, bonsaiId);
+    // Update like count
+    const likeCount = await updateLikeCount(db, bonsaiId);
 
-		const response: LikeResponse = {
-			liked: false,
-			likeCount,
-		};
+    const response: LikeResponse = {
+      liked: false,
+      likeCount,
+    };
 
-		return c.json(response, 200);
-	} catch (error) {
-		console.error("Error removing like:", error);
-		return c.json({ error: "Failed to remove like" }, 500);
-	}
+    return c.json(response, 200);
+  } catch (error) {
+    console.error("Error removing like:", error);
+    return c.json({ error: "Failed to remove like" }, 500);
+  }
 });
 
 // ============================================================================
@@ -276,140 +282,143 @@ likes.delete("/:bonsaiId/likes", async (c) => {
 // ============================================================================
 
 likes.get("/:bonsaiId/likes", async (c) => {
-	const db = c.get("db");
-	const userId = c.get("userId");
+  const db = c.get("db");
+  const userId = c.get("userId");
 
-	// Validate bonsaiId
-	const paramResult = bonsaiIdParamSchema.safeParse({
-		bonsaiId: c.req.param("bonsaiId"),
-	});
+  // Validate bonsaiId
+  const paramResult = bonsaiIdParamSchema.safeParse({
+    bonsaiId: c.req.param("bonsaiId"),
+  });
 
-	if (!paramResult.success) {
-		return c.json(
-			{
-				error: "Invalid bonsai ID",
-				details: paramResult.error.flatten().fieldErrors,
-			},
-			400,
-		);
-	}
+  if (!paramResult.success) {
+    return c.json(
+      {
+        error: "Invalid bonsai ID",
+        details: paramResult.error.flatten().fieldErrors,
+      },
+      400
+    );
+  }
 
-	const { bonsaiId } = paramResult.data;
+  const { bonsaiId } = paramResult.data;
 
-	// Parse query parameters
-	const queryResult = paginationQuerySchema.safeParse({
-		cursor: c.req.query("cursor"),
-		limit: c.req.query("limit"),
-	});
+  // Parse query parameters
+  const queryResult = paginationQuerySchema.safeParse({
+    cursor: c.req.query("cursor"),
+    limit: c.req.query("limit"),
+  });
 
-	if (!queryResult.success) {
-		return c.json(
-			{
-				error: "Invalid query parameters",
-				details: queryResult.error.flatten().fieldErrors,
-			},
-			400,
-		);
-	}
+  if (!queryResult.success) {
+    return c.json(
+      {
+        error: "Invalid query parameters",
+        details: queryResult.error.flatten().fieldErrors,
+      },
+      400
+    );
+  }
 
-	const { cursor, limit } = queryResult.data;
+  const { cursor, limit } = queryResult.data;
 
-	// Verify bonsai access
-	const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
-	if (!accessResult.allowed) {
-		return c.json({ error: "Bonsai not found" }, 404);
-	}
+  // Verify bonsai access
+  const accessResult = await verifyBonsaiAccess(db, bonsaiId, userId);
+  if (!accessResult.allowed) {
+    return c.json({ error: "Bonsai not found" }, 404);
+  }
 
-	// Decode cursor if provided
-	let cursorData: { createdAt: string; id: string } | null = null;
-	if (cursor) {
-		cursorData = decodeCursor(cursor);
-		if (!cursorData) {
-			return c.json({ error: "Invalid cursor" }, 400);
-		}
-	}
+  // Decode cursor if provided
+  let cursorData: { createdAt: string; id: string } | null = null;
+  if (cursor) {
+    cursorData = decodeCursor(cursor);
+    if (!cursorData) {
+      return c.json({ error: "Invalid cursor" }, 400);
+    }
+  }
 
-	try {
-		// Build cursor condition
-		const cursorCondition = cursorData
-			? or(
-					lt(schema.likes.createdAt, cursorData.createdAt),
-					and(
-						eq(schema.likes.createdAt, cursorData.createdAt),
-						lt(schema.likes.id, cursorData.id),
-					),
-				)
-			: undefined;
+  try {
+    // Build cursor condition
+    const cursorCondition = cursorData
+      ? or(
+          lt(schema.likes.createdAt, cursorData.createdAt),
+          and(
+            eq(schema.likes.createdAt, cursorData.createdAt),
+            lt(schema.likes.id, cursorData.id)
+          )
+        )
+      : undefined;
 
-		// Fetch likes with user info
-		const results = await db
-			.select({
-				id: schema.likes.id,
-				createdAt: schema.likes.createdAt,
-				user: {
-					id: schema.users.id,
-					name: schema.users.name,
-					displayName: schema.users.displayName,
-					avatarUrl: schema.users.avatarUrl,
-				},
-			})
-			.from(schema.likes)
-			.innerJoin(schema.users, eq(schema.likes.userId, schema.users.id))
-			.where(
-				and(
-					eq(schema.likes.bonsaiId, bonsaiId),
-					isNull(schema.users.deletedAt),
-					cursorCondition,
-				),
-			)
-			.orderBy(desc(schema.likes.createdAt), desc(schema.likes.id))
-			.limit(limit + 1);
+    // Fetch likes with user info
+    const results = await db
+      .select({
+        id: schema.likes.id,
+        createdAt: schema.likes.createdAt,
+        user: {
+          id: schema.users.id,
+          name: schema.users.name,
+          displayName: schema.users.displayName,
+          avatarUrl: schema.users.avatarUrl,
+        },
+      })
+      .from(schema.likes)
+      .innerJoin(schema.users, eq(schema.likes.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.likes.bonsaiId, bonsaiId),
+          isNull(schema.users.deletedAt),
+          cursorCondition
+        )
+      )
+      .orderBy(desc(schema.likes.createdAt), desc(schema.likes.id))
+      .limit(limit + 1);
 
-		// Check if there are more results
-		const hasMore = results.length > limit;
-		const data = hasMore ? results.slice(0, limit) : results;
+    // Check if there are more results
+    const hasMore = results.length > limit;
+    const data = hasMore ? results.slice(0, limit) : results;
 
-		// Get total count
-		const [countResult] = await db
-			.select({ total: count() })
-			.from(schema.likes)
-			.where(eq(schema.likes.bonsaiId, bonsaiId));
+    // Get total count
+    const [countResult] = await db
+      .select({ total: count() })
+      .from(schema.likes)
+      .where(eq(schema.likes.bonsaiId, bonsaiId));
 
-		// Check if current user has liked
-		let isLiked = false;
-		if (userId) {
-			const [userLike] = await db
-				.select({ id: schema.likes.id })
-				.from(schema.likes)
-				.where(
-					and(eq(schema.likes.userId, userId), eq(schema.likes.bonsaiId, bonsaiId)),
-				)
-				.limit(1);
-			isLiked = !!userLike;
-		}
+    // Check if current user has liked
+    let isLiked = false;
+    if (userId) {
+      const [userLike] = await db
+        .select({ id: schema.likes.id })
+        .from(schema.likes)
+        .where(
+          and(
+            eq(schema.likes.userId, userId),
+            eq(schema.likes.bonsaiId, bonsaiId)
+          )
+        )
+        .limit(1);
+      isLiked = !!userLike;
+    }
 
-		// Generate next cursor
-		const nextCursor =
-			hasMore && data.length > 0
-				? encodeCursor({
-						createdAt: data[data.length - 1].createdAt,
-						id: data[data.length - 1].id,
-					})
-				: null;
+    // Generate next cursor
+    const nextCursor =
+      hasMore && data.length > 0
+        ? encodeCursor({
+            createdAt: data[data.length - 1].createdAt,
+            id: data[data.length - 1].id,
+          })
+        : null;
 
-		const response: LikeListResponse = {
-			data: data.map((item) => item.user as UserSummary),
-			total: countResult?.total ?? 0,
-			isLiked,
-			nextCursor,
-			hasMore,
-		};
+    const response: LikeListResponse = {
+      data: data.map((item) => item.user as UserSummary),
+      total: countResult?.total ?? 0,
+      isLiked,
+      nextCursor,
+      hasMore,
+    };
 
-		return c.json(response, 200);
-	} catch (error) {
-		console.error("Error listing likes:", error);
-		return c.json({ error: "Failed to list likes" }, 500);
-	}
+    return c.json(response, 200);
+  } catch (error) {
+    console.error("Error listing likes:", error);
+    return c.json({ error: "Failed to list likes" }, 500);
+  }
 });
 
 export default likes;

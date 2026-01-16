@@ -7,7 +7,10 @@ import type { R2BucketBinding } from "@/lib/storage/r2";
 import authRoutes from "./routes/auth";
 import bonsaiRoutes from "./routes/bonsai";
 import careLogsRoutes from "./routes/care-logs";
+import commentsRoutes from "./routes/comments";
+import followsRoutes from "./routes/follows";
 import imagesRoutes from "./routes/images";
+import likesRoutes from "./routes/likes";
 import mastersRoutes from "./routes/masters";
 
 // Create Hono app with environment bindings type
@@ -117,6 +120,15 @@ api.route("/bonsai", careLogsRoutes);
 
 // Bonsai image routes
 api.route("/bonsai", imagesRoutes);
+
+// Social: Likes routes (nested under bonsai)
+api.route("/bonsai", likesRoutes);
+
+// Social: Comments routes (nested under bonsai)
+api.route("/bonsai", commentsRoutes);
+
+// Social: Follows routes (nested under users)
+api.route("/users", followsRoutes);
 
 // 404 handler
 app.notFound((c) => {

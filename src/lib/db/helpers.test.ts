@@ -73,7 +73,10 @@ describe("helpers", () => {
 
       it("should return null for invalid JSON", () => {
         // Encode invalid JSON as base64url
-        const invalidJson = btoa("not json").replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const invalidJson = btoa("not json")
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(invalidJson);
 
@@ -82,7 +85,10 @@ describe("helpers", () => {
 
       it("should return null for missing createdAt", () => {
         const payload = JSON.stringify({ id: "bonsai-123" });
-        const encoded = btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const encoded = btoa(payload)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(encoded);
 
@@ -90,8 +96,13 @@ describe("helpers", () => {
       });
 
       it("should return null for missing id", () => {
-        const payload = JSON.stringify({ createdAt: "2024-01-15T10:30:00.000Z" });
-        const encoded = btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const payload = JSON.stringify({
+          createdAt: "2024-01-15T10:30:00.000Z",
+        });
+        const encoded = btoa(payload)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(encoded);
 
@@ -99,8 +110,14 @@ describe("helpers", () => {
       });
 
       it("should return null for invalid createdAt date", () => {
-        const payload = JSON.stringify({ createdAt: "not-a-date", id: "bonsai-123" });
-        const encoded = btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const payload = JSON.stringify({
+          createdAt: "not-a-date",
+          id: "bonsai-123",
+        });
+        const encoded = btoa(payload)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(encoded);
 
@@ -109,7 +126,10 @@ describe("helpers", () => {
 
       it("should return null for non-string createdAt", () => {
         const payload = JSON.stringify({ createdAt: 12345, id: "bonsai-123" });
-        const encoded = btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const encoded = btoa(payload)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(encoded);
 
@@ -117,8 +137,14 @@ describe("helpers", () => {
       });
 
       it("should return null for non-string id", () => {
-        const payload = JSON.stringify({ createdAt: "2024-01-15T10:30:00.000Z", id: 123 });
-        const encoded = btoa(payload).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const payload = JSON.stringify({
+          createdAt: "2024-01-15T10:30:00.000Z",
+          id: 123,
+        });
+        const encoded = btoa(payload)
+          .replace(/\+/g, "-")
+          .replace(/\//g, "_")
+          .replace(/=/g, "");
 
         const decoded = decodeCursor(encoded);
 
@@ -150,7 +176,10 @@ describe("helpers", () => {
       it("should preserve cursor data through encode/decode cycle", () => {
         const testCases = [
           { createdAt: "2024-01-01T00:00:00.000Z", id: "id-1" },
-          { createdAt: "2024-12-31T23:59:59.999Z", id: "very-long-id-that-might-cause-issues" },
+          {
+            createdAt: "2024-12-31T23:59:59.999Z",
+            id: "very-long-id-that-might-cause-issues",
+          },
           { createdAt: "2024-06-15T12:00:00.000Z", id: "bonsai_123-456_789" },
         ];
 

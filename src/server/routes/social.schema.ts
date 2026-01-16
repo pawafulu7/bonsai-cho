@@ -59,10 +59,10 @@ export interface LikeListResponse {
 export const createCommentSchema = z.object({
 	content: z
 		.string()
-		.min(1, "Comment cannot be empty")
 		.max(1000, "Comment must be 1000 characters or less")
 		.transform((val) => val.trim())
-		.transform((val) => val.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")),
+		.transform((val) => val.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ""))
+		.refine((val) => val.length >= 1, "Comment cannot be empty"),
 });
 
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

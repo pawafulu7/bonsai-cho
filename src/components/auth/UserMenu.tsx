@@ -95,7 +95,7 @@ export function UserMenu({ user, csrfToken }: UserMenuProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <a href="/profile" className="cursor-pointer">
+          <a href={`/users/${user.id}`} className="cursor-pointer">
             <svg
               className="mr-2 h-4 w-4"
               xmlns="http://www.w3.org/2000/svg"

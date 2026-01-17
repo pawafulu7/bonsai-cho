@@ -1,0 +1,122 @@
+import { useCallback, useState } from "react";
+import type {
+  UseFollowListOptions,
+  UseFollowListReturn,
+  UserCardProps,
+} from "@/types/user";
+
+/**
+ * useFollowList - Custom hook for fetching followers/following list
+ *
+ * Features:
+ * - Cursor-based pagination
+ * - Loading and error states
+ * - Load more capability
+ */
+export function useFollowList({
+  userId,
+  type,
+  limit = 20,
+}: UseFollowListOptions): UseFollowListReturn {
+  const [users, setUsers] = useState<UserCardProps[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
+
+  const fetchUsers = useCallback(
+    async (loadMore = false) => {
+      if (loadMore) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+      setError(null);
+
+      try {
+        const params = new URLSearchParams({ limit: String(limit) });
+        if (loadMore && cursor) {
+          params.set("cursor", cursor);
+        }
+
+        const response = await fetch(
+          `/api/users/${userId}/${type}?${params.toString()}`,
+          { credentials: "include" }
+        );
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error("User not found");
+          }
+          throw new Error(`Failed to fetch ${type}`);
+        }
+
+        const data = await response.json();
+
+        // Map API response to UserCardProps
+        const newUsers: UserCardProps[] = data.data.map(
+          (user: {
+            id: string;
+            name: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+            isFollowing?: boolean;
+          }) => ({
+            id: user.id,
+            name: user.name,
+            displayName: user.displayName,
+            avatarUrl: user.avatarUrl,
+            isFollowing: user.isFollowing,
+            showFollowButton: true,
+          })
+        );
+
+        if (loadMore) {
+          setUsers((prev) => [...prev, ...newUsers]);
+        } else {
+          setUsers(newUsers);
+        }
+
+        setHasMore(data.hasMore);
+        setCursor(data.nextCursor);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
+      }
+    },
+    [userId, type, limit, cursor]
+  );
+
+  // Initial fetch (called manually from component or effect)
+  const initialize = useCallback(async () => {
+    if (!initialized) {
+      setInitialized(true);
+      await fetchUsers(false);
+    }
+  }, [initialized, fetchUsers]);
+
+  // Load more
+  const loadMore = useCallback(async () => {
+    if (!isLoadingMore && hasMore) {
+      await fetchUsers(true);
+    }
+  }, [isLoadingMore, hasMore, fetchUsers]);
+
+  // Auto-initialize on first render
+  if (!initialized && !isLoading) {
+    initialize();
+  }
+
+  return {
+    users,
+    isLoading,
+    isLoadingMore,
+    error,
+    hasMore,
+    loadMore,
+  };
+}

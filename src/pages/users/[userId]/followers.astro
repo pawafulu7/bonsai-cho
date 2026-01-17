@@ -1,0 +1,149 @@
+---
+/**
+ * User Followers Page
+ *
+ * Displays list of users who follow the target user.
+ * SSR fetches initial data for SEO and authenticated state.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { FollowerGrid } from "@/components/user/FollowerGrid";
+import { getAuthData } from "@/lib/auth/server";
+import type { UserProfile } from "@/types/user";
+
+// Get route params
+const { userId } = Astro.params;
+
+if (!userId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Get auth data
+const { user, csrfToken } = await getAuthData(Astro);
+
+// SSR: Fetch user profile and initial followers
+let profile: UserProfile | null = null;
+let followerList = {
+  data: [],
+  hasMore: false,
+  nextCursor: null as string | null,
+};
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const [profileRes, followersRes] = await Promise.all([
+    fetch(`${Astro.url.origin}/api/users/${userId}`, {
+      headers: { Cookie: cookieHeader },
+    }),
+    fetch(`${Astro.url.origin}/api/users/${userId}/followers?limit=20`, {
+      headers: { Cookie: cookieHeader },
+    }),
+  ]);
+
+  if (profileRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!profileRes.ok) {
+    fetchError = "ユーザー情報の取得に失敗しました";
+  } else {
+    profile = await profileRes.json();
+  }
+
+  if (followersRes.ok) {
+    followerList = await followersRes.json();
+  }
+} catch (e) {
+  console.error("Error fetching followers:", e);
+  fetchError = "フォロワー情報の取得に失敗しました";
+}
+
+// Page metadata
+const displayName = profile?.displayName || profile?.name || "ユーザー";
+const pageTitle = `${displayName}のフォロワー | Bonsai-Cho`;
+const pageDescription = `${displayName}をフォローしているユーザー一覧`;
+
+// Transform data for FollowerGrid
+const initialData = followerList.data.map(
+  (user: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    isFollowing?: boolean;
+  }) => ({
+    id: user.id,
+    name: user.name,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    isFollowing: user.isFollowing,
+    showFollowButton: true,
+  })
+);
+---
+
+<AppLayout
+  title={pageTitle}
+  description={pageDescription}
+>
+  <div class="container-app py-8">
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-8 text-center text-destructive">
+        <p class="text-lg">{fetchError}</p>
+        <a href="/bonsai" class="mt-4 inline-block text-sm underline hover:no-underline">
+          一覧に戻る
+        </a>
+      </div>
+    )}
+
+    {profile && (
+      <div class="space-y-8">
+        <!-- Breadcrumb / Back link -->
+        <nav aria-label="パンくずリスト">
+          <a
+            href={`/users/${profile.id}`}
+            class="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-2"
+          >
+            <svg
+              class="w-4 h-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {displayName}のプロフィールに戻る
+          </a>
+        </nav>
+
+        <!-- Header -->
+        <header>
+          <h1 class="font-serif text-3xl font-bold text-foreground">
+            {displayName}のフォロワー
+          </h1>
+          <p class="text-muted-foreground mt-2">
+            <span class="tabular-nums font-medium">{profile.followerCount}</span>人
+          </p>
+        </header>
+
+        <!-- Follower Grid -->
+        <FollowerGrid
+          client:visible
+          userId={userId}
+          type="followers"
+          initialData={initialData}
+          initialCursor={followerList.nextCursor}
+          initialHasMore={followerList.hasMore}
+          csrfToken={csrfToken || undefined}
+        />
+      </div>
+    )}
+  </div>
+</AppLayout>

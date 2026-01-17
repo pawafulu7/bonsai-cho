@@ -55,12 +55,23 @@ export const updateProfileSchema = z.object({
   website: z
     .string()
     .max(200, "Website URL must be 200 characters or less")
+    .transform((val) => val.trim())
     .refine(
       (val) => {
         if (val === "" || val === null) return true;
-        return val.startsWith("https://") || val.startsWith("http://");
+        // Strict URL validation using URL constructor
+        try {
+          const url = new URL(val);
+          // Only allow http and https protocols (prevent javascript:, data:, etc.)
+          return url.protocol === "https:" || url.protocol === "http:";
+        } catch {
+          return false;
+        }
       },
-      { message: "Website must start with https:// or http://" }
+      {
+        message:
+          "Website must be a valid URL starting with https:// or http://",
+      }
     )
     .transform((val) => (val === "" ? null : val))
     .nullable()

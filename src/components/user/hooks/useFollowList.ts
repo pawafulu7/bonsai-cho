@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type {
   UseFollowListOptions,
   UseFollowListReturn,
@@ -12,11 +12,14 @@ import type {
  * - Cursor-based pagination
  * - Loading and error states
  * - Load more capability
+ * - Auto-initialization via useEffect (not during render)
+ * - csrfToken support for follow buttons
  */
 export function useFollowList({
   userId,
   type,
   limit = 20,
+  csrfToken,
 }: UseFollowListOptions): UseFollowListReturn {
   const [users, setUsers] = useState<UserCardProps[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,7 +27,6 @@ export function useFollowList({
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState(false);
 
   const fetchUsers = useCallback(
     async (loadMore = false) => {
@@ -42,7 +44,7 @@ export function useFollowList({
         }
 
         const response = await fetch(
-          `/api/users/${userId}/${type}?${params.toString()}`,
+          `/api/users/${encodeURIComponent(userId)}/${type}?${params.toString()}`,
           { credentials: "include" }
         );
 
@@ -69,7 +71,8 @@ export function useFollowList({
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
             isFollowing: user.isFollowing,
-            showFollowButton: true,
+            showFollowButton: !!csrfToken, // Only show follow button if csrfToken is available
+            csrfToken,
           })
         );
 
@@ -88,28 +91,22 @@ export function useFollowList({
         setIsLoadingMore(false);
       }
     },
-    [userId, type, limit, cursor]
+    [userId, type, limit, cursor, csrfToken]
   );
 
-  // Initial fetch (called manually from component or effect)
-  const initialize = useCallback(async () => {
-    if (!initialized) {
-      setInitialized(true);
-      await fetchUsers(false);
-    }
-  }, [initialized, fetchUsers]);
+  // Auto-initialize via useEffect (proper React pattern)
+  // Re-fetch when userId or type changes
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally depend on userId/type to refetch on change
+  useEffect(() => {
+    fetchUsers(false);
+  }, [userId, type]);
 
   // Load more
   const loadMore = useCallback(async () => {
-    if (!isLoadingMore && hasMore) {
+    if (!isLoadingMore && hasMore && !isLoading) {
       await fetchUsers(true);
     }
-  }, [isLoadingMore, hasMore, fetchUsers]);
-
-  // Auto-initialize on first render
-  if (!initialized && !isLoading) {
-    initialize();
-  }
+  }, [isLoadingMore, hasMore, isLoading, fetchUsers]);
 
   return {
     users,

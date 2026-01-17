@@ -122,78 +122,77 @@ users.get("/:userId", async (c) => {
   const { userId: targetUserId } = paramResult.data;
 
   try {
-    // Fetch user (excluding deleted users)
-    const [user] = await db
-      .select({
-        id: schema.users.id,
-        name: schema.users.name,
-        displayName: schema.users.displayName,
-        avatarUrl: schema.users.avatarUrl,
-        bio: schema.users.bio,
-        location: schema.users.location,
-        website: schema.users.website,
-        followerCount: schema.users.followerCount,
-        followingCount: schema.users.followingCount,
-        createdAt: schema.users.createdAt,
-      })
-      .from(schema.users)
-      .where(
-        and(eq(schema.users.id, targetUserId), isNull(schema.users.deletedAt))
-      )
-      .limit(1);
+    const isSelf = currentUserId === targetUserId;
 
+    // Run all queries in parallel for better performance
+    const [userResult, bonsaiCountResult, followResult] = await Promise.all([
+      // Fetch user (excluding deleted users)
+      db
+        .select({
+          id: schema.users.id,
+          name: schema.users.name,
+          displayName: schema.users.displayName,
+          avatarUrl: schema.users.avatarUrl,
+          bio: schema.users.bio,
+          location: schema.users.location,
+          website: schema.users.website,
+          followerCount: schema.users.followerCount,
+          followingCount: schema.users.followingCount,
+          createdAt: schema.users.createdAt,
+        })
+        .from(schema.users)
+        .where(
+          and(eq(schema.users.id, targetUserId), isNull(schema.users.deletedAt))
+        )
+        .limit(1),
+
+      // Calculate bonsaiCount
+      // Owner (isSelf=true): Total bonsai count (excluding deleted)
+      // Others: Public bonsai only (isPublic=true, deletedAt=null)
+      isSelf
+        ? db
+            .select({ count: count() })
+            .from(schema.bonsai)
+            .where(
+              and(
+                eq(schema.bonsai.userId, targetUserId),
+                isNull(schema.bonsai.deletedAt)
+              )
+            )
+        : db
+            .select({ count: count() })
+            .from(schema.bonsai)
+            .where(
+              and(
+                eq(schema.bonsai.userId, targetUserId),
+                eq(schema.bonsai.isPublic, true),
+                isNull(schema.bonsai.deletedAt)
+              )
+            ),
+
+      // Check if current user is following target user (only if authenticated and not self)
+      currentUserId && !isSelf
+        ? db
+            .select({ id: schema.follows.id })
+            .from(schema.follows)
+            .where(
+              and(
+                eq(schema.follows.followerId, currentUserId),
+                eq(schema.follows.followingId, targetUserId)
+              )
+            )
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
+
+    const [user] = userResult;
     if (!user) {
       return c.json({ error: "User not found" }, 404);
     }
 
-    const isSelf = currentUserId === targetUserId;
-
-    // Calculate bonsaiCount
-    // Owner (isSelf=true): Total bonsai count (excluding deleted)
-    // Others: Public bonsai only (isPublic=true, deletedAt=null)
-    let bonsaiCount: number;
-    if (isSelf) {
-      // Owner sees all their bonsai (excluding deleted)
-      const [result] = await db
-        .select({ count: count() })
-        .from(schema.bonsai)
-        .where(
-          and(
-            eq(schema.bonsai.userId, targetUserId),
-            isNull(schema.bonsai.deletedAt)
-          )
-        );
-      bonsaiCount = result?.count ?? 0;
-    } else {
-      // Others see only public bonsai
-      const [result] = await db
-        .select({ count: count() })
-        .from(schema.bonsai)
-        .where(
-          and(
-            eq(schema.bonsai.userId, targetUserId),
-            eq(schema.bonsai.isPublic, true),
-            isNull(schema.bonsai.deletedAt)
-          )
-        );
-      bonsaiCount = result?.count ?? 0;
-    }
-
-    // Check if current user is following target user
-    let isFollowing: boolean | null = null;
-    if (currentUserId && !isSelf) {
-      const [follow] = await db
-        .select({ id: schema.follows.id })
-        .from(schema.follows)
-        .where(
-          and(
-            eq(schema.follows.followerId, currentUserId),
-            eq(schema.follows.followingId, targetUserId)
-          )
-        )
-        .limit(1);
-      isFollowing = !!follow;
-    }
+    const bonsaiCount = bonsaiCountResult[0]?.count ?? 0;
+    const isFollowing =
+      currentUserId && !isSelf ? followResult.length > 0 : null;
 
     const response: UserProfileResponse = {
       id: user.id,

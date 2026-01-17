@@ -8,8 +8,8 @@ import { FollowButton } from "./FollowButton";
  *
  * Features:
  * - BonsaiCard visual pattern (asymmetric radius, left border)
- * - Wraps in <a> for card-level link
- * - Internal FollowButton with stopPropagation
+ * - Card is navigable via anchor (no nested interactive elements)
+ * - FollowButton positioned separately to avoid a11y issues
  * - Hover animation
  */
 export function UserCard({
@@ -43,15 +43,21 @@ export function UserCard({
         // Hover effects
         "hover:shadow-xl hover:translate-y-[-2px]",
         "transition-all duration-200",
-        "cursor-pointer",
         // Focus styles for keyboard navigation
         "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+        // Relative positioning for absolute button
+        "relative",
         className
       )}
     >
+      {/* Main content area - clickable link */}
       <a
         href={`/users/${id}`}
-        className="flex items-center gap-4 focus:outline-none"
+        className={cn(
+          "flex items-center gap-4 focus:outline-none",
+          // Add padding-right to make room for follow button
+          showFollowButton && isFollowing !== undefined && "pr-24"
+        )}
         aria-label={`${userDisplayName}のプロフィールを見る`}
       >
         {/* Avatar */}
@@ -69,27 +75,19 @@ export function UserCard({
           </p>
           <p className="text-sm text-muted-foreground truncate">@{name}</p>
         </div>
-
-        {/* Follow button (if enabled and has follow state) */}
-        {showFollowButton && isFollowing !== undefined && (
-          // biome-ignore lint/a11y/noStaticElementInteractions: Event delegation wrapper to prevent card navigation
-          <div
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.stopPropagation();
-              }
-            }}
-          >
-            <FollowButton
-              userId={id}
-              userName={userDisplayName}
-              initialFollowing={isFollowing}
-              csrfToken={csrfToken}
-            />
-          </div>
-        )}
       </a>
+
+      {/* Follow button - positioned absolutely to avoid nesting inside anchor */}
+      {showFollowButton && isFollowing !== undefined && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          <FollowButton
+            userId={id}
+            userName={userDisplayName}
+            initialFollowing={isFollowing}
+            csrfToken={csrfToken}
+          />
+        </div>
+      )}
     </article>
   );
 }

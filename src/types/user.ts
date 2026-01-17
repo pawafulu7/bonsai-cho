@@ -167,6 +167,8 @@ export interface UseFollowListOptions {
   type: "followers" | "following";
   /** Page size */
   limit?: number;
+  /** CSRF token for follow buttons (required for follow functionality) */
+  csrfToken?: string;
 }
 
 /**

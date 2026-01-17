@@ -17,6 +17,8 @@ interface Props {
 
 const { user = null, csrfToken = null } = Astro.props;
 const currentPath = Astro.url.pathname;
+const isBonsaiPage =
+  currentPath === "/bonsai" || currentPath.startsWith("/bonsai/");
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -43,16 +45,14 @@ const currentPath = Astro.url.pathname;
       </a>
 
       <!-- Navigation -->
-      <nav class="hidden items-center gap-6 md:flex" aria-label="Main navigation">
+      <nav class="hidden items-center gap-6 md:flex" aria-label="メインナビゲーション">
         <a
           href="/bonsai"
           class:list={[
             "text-sm font-medium transition-colors hover:text-foreground",
-            currentPath === '/bonsai' || currentPath.startsWith('/bonsai/')
-              ? "text-foreground"
-              : "text-muted-foreground"
+            isBonsaiPage ? "text-foreground" : "text-muted-foreground"
           ]}
-          aria-current={currentPath === '/bonsai' || currentPath.startsWith('/bonsai/') ? 'page' : undefined}
+          aria-current={isBonsaiPage ? 'page' : undefined}
         >
           盆栽一覧
         </a>
@@ -65,7 +65,7 @@ const currentPath = Astro.url.pathname;
           type="button"
           id="mobile-menu-button"
           class="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:hidden"
-          aria-label="Open menu"
+          aria-label="メニューを開く"
           aria-expanded="false"
           aria-controls="mobile-menu"
         >
@@ -103,19 +103,25 @@ const currentPath = Astro.url.pathname;
     class="hidden border-t border-border bg-background md:hidden"
     aria-hidden="true"
   >
-    <nav class="container-app py-4" aria-label="Mobile navigation">
+    <nav class="container-app py-4" aria-label="モバイルナビゲーション">
       <a
         href="/bonsai"
-        class="block py-4 text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
+        class:list={[
+          "block py-4 text-base font-medium transition-colors hover:text-foreground",
+          isBonsaiPage ? "text-foreground" : "text-muted-foreground"
+        ]}
+        aria-current={isBonsaiPage ? 'page' : undefined}
       >
         盆栽一覧
       </a>
-      <a
-        href="/login"
-        class="block py-4 text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        ログイン
-      </a>
+      {!user && (
+        <a
+          href="/login"
+          class="block py-4 text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ログイン
+        </a>
+      )}
     </nav>
   </div>
 </header>
@@ -130,7 +136,7 @@ const currentPath = Astro.url.pathname;
     const isOpen = isCurrentlyHidden;
     button.setAttribute('aria-expanded', String(isOpen));
     menu?.setAttribute('aria-hidden', String(!isOpen));
-    button.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
+    button.setAttribute('aria-label', isOpen ? 'メニューを閉じる' : 'メニューを開く');
   });
 
   document.addEventListener('keydown', (e) => {
@@ -138,7 +144,7 @@ const currentPath = Astro.url.pathname;
       menu?.classList.add('hidden');
       button?.setAttribute('aria-expanded', 'false');
       menu?.setAttribute('aria-hidden', 'true');
-      button?.setAttribute('aria-label', 'Open menu');
+      button?.setAttribute('aria-label', 'メニューを開く');
       button?.focus();
     }
   });

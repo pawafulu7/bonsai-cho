@@ -219,6 +219,8 @@ export interface BonsaiListItem {
   primaryImageUrl: string | null;
   thumbnailUrl: string | null;
   imageCount: number;
+  likeCount: number;
+  commentCount: number;
   isPublic: boolean;
   createdAt: string;
   updatedAt: string;
@@ -262,13 +264,17 @@ export interface BonsaiDetailResponse {
   isPublic: boolean;
   likeCount: number;
   commentCount: number;
+  isLiked: boolean;
   images: Array<{
     id: string;
+    bonsaiId: string;
     imageUrl: string;
     thumbnailUrl: string | null;
     caption: string | null;
+    takenAt: string | null;
     isPrimary: boolean;
     sortOrder: number;
+    createdAt: string;
   }>;
   tags: Array<{
     id: string;

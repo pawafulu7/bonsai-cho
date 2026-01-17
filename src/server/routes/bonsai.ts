@@ -169,6 +169,8 @@ bonsai.get("/", async (c) => {
         speciesId: schema.bonsai.speciesId,
         styleId: schema.bonsai.styleId,
         isPublic: schema.bonsai.isPublic,
+        likeCount: schema.bonsai.likeCount,
+        commentCount: schema.bonsai.commentCount,
         createdAt: schema.bonsai.createdAt,
         updatedAt: schema.bonsai.updatedAt,
       })
@@ -299,6 +301,8 @@ bonsai.get("/", async (c) => {
         primaryImageUrl: images?.primaryUrl || null,
         thumbnailUrl: images?.thumbnailUrl || null,
         imageCount: images?.count || 0,
+        likeCount: b.likeCount,
+        commentCount: b.commentCount,
         isPublic: b.isPublic,
         createdAt: b.createdAt,
         updatedAt: b.updatedAt,
@@ -401,11 +405,14 @@ bonsai.get("/:bonsaiId", async (c) => {
     const images = await db
       .select({
         id: schema.bonsaiImages.id,
+        bonsaiId: schema.bonsaiImages.bonsaiId,
         imageUrl: schema.bonsaiImages.imageUrl,
         thumbnailUrl: schema.bonsaiImages.thumbnailUrl,
         caption: schema.bonsaiImages.caption,
+        takenAt: schema.bonsaiImages.takenAt,
         isPrimary: schema.bonsaiImages.isPrimary,
         sortOrder: schema.bonsaiImages.sortOrder,
+        createdAt: schema.bonsaiImages.createdAt,
       })
       .from(schema.bonsaiImages)
       .where(eq(schema.bonsaiImages.bonsaiId, bonsaiId))
@@ -420,6 +427,22 @@ bonsai.get("/:bonsaiId", async (c) => {
       .from(schema.bonsaiTags)
       .innerJoin(schema.tags, eq(schema.bonsaiTags.tagId, schema.tags.id))
       .where(eq(schema.bonsaiTags.bonsaiId, bonsaiId));
+
+    // Check if current user has liked this bonsai
+    let isLiked = false;
+    if (userId) {
+      const likeRecord = await db
+        .select({ id: schema.likes.id })
+        .from(schema.likes)
+        .where(
+          and(
+            eq(schema.likes.bonsaiId, bonsaiId),
+            eq(schema.likes.userId, userId)
+          )
+        )
+        .limit(1);
+      isLiked = likeRecord.length > 0;
+    }
 
     const response: BonsaiDetailResponse = {
       id: bonsaiRecord.id,
@@ -438,6 +461,7 @@ bonsai.get("/:bonsaiId", async (c) => {
       isPublic: bonsaiRecord.isPublic,
       likeCount: bonsaiRecord.likeCount,
       commentCount: bonsaiRecord.commentCount,
+      isLiked,
       images,
       tags: tagsResult,
       createdAt: bonsaiRecord.createdAt,

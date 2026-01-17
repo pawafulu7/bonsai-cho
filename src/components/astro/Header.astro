@@ -131,21 +131,23 @@ const isBonsaiPage =
   const menu = document.getElementById('mobile-menu');
 
   button?.addEventListener('click', () => {
-    const isCurrentlyHidden = menu?.classList.contains('hidden');
-    menu?.classList.toggle('hidden');
+    if (!button || !menu) return;
+    const isCurrentlyHidden = menu.classList.contains('hidden');
+    menu.classList.toggle('hidden');
     const isOpen = isCurrentlyHidden;
     button.setAttribute('aria-expanded', String(isOpen));
-    menu?.setAttribute('aria-hidden', String(!isOpen));
+    menu.setAttribute('aria-hidden', String(!isOpen));
     button.setAttribute('aria-label', isOpen ? 'メニューを閉じる' : 'メニューを開く');
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !menu?.classList.contains('hidden')) {
-      menu?.classList.add('hidden');
-      button?.setAttribute('aria-expanded', 'false');
-      menu?.setAttribute('aria-hidden', 'true');
-      button?.setAttribute('aria-label', 'メニューを開く');
-      button?.focus();
+    if (!button || !menu) return;
+    if (e.key === 'Escape' && !menu.classList.contains('hidden')) {
+      menu.classList.add('hidden');
+      button.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
+      button.setAttribute('aria-label', 'メニューを開く');
+      button.focus();
     }
   });
 </script>

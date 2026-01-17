@@ -207,7 +207,10 @@ images.post("/:bonsaiId/images", async (c) => {
   });
   if (!queryResult.success) {
     return c.json(
-      { error: "Invalid parameters", details: z.treeifyError(queryResult.error) },
+      {
+        error: "Invalid parameters",
+        details: z.treeifyError(queryResult.error),
+      },
       400
     );
   }
@@ -438,7 +441,10 @@ images.patch("/:bonsaiId/images/reorder", async (c) => {
   const bodyResult = reorderSchema.safeParse(body);
   if (!bodyResult.success) {
     return c.json(
-      { error: "Invalid request body", details: z.treeifyError(bodyResult.error) },
+      {
+        error: "Invalid request body",
+        details: z.treeifyError(bodyResult.error),
+      },
       400
     );
   }
@@ -537,7 +543,10 @@ images.patch("/:bonsaiId/images/:imageId", async (c) => {
   const bodyResult = updateImageSchema.safeParse(body);
   if (!bodyResult.success) {
     return c.json(
-      { error: "Invalid request body", details: z.treeifyError(bodyResult.error) },
+      {
+        error: "Invalid request body",
+        details: z.treeifyError(bodyResult.error),
+      },
       400
     );
   }

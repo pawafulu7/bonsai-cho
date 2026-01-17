@@ -192,9 +192,7 @@ export const careLogFilterSchema = z.object({
   from: z.iso
     .datetime({ error: "Invalid datetime format for 'from'" })
     .optional(),
-  to: z.iso
-    .datetime({ error: "Invalid datetime format for 'to'" })
-    .optional(),
+  to: z.iso.datetime({ error: "Invalid datetime format for 'to'" }).optional(),
 });
 
 // ============================================================================

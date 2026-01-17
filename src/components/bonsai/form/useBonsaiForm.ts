@@ -46,6 +46,11 @@ export interface BonsaiFormData {
 }
 
 /**
+ * Type-safe error record for form fields
+ */
+export type BonsaiFormErrors = Partial<Record<keyof BonsaiFormData, string>>;
+
+/**
  * Options for useBonsaiForm hook
  */
 export interface UseBonsaiFormOptions {
@@ -73,7 +78,7 @@ export interface UseBonsaiFormReturn {
   ) => void;
 
   // Validation
-  errors: Record<string, string>;
+  errors: BonsaiFormErrors;
   validateField: (field: keyof BonsaiFormData) => void;
   validateAll: () => boolean;
   clearError: (field: keyof BonsaiFormData) => void;
@@ -215,9 +220,25 @@ function validateSingleField(
 }
 
 /**
+ * API payload type for bonsai
+ */
+interface BonsaiPayload {
+  name: string;
+  description: string | null;
+  speciesId: string | null;
+  styleId: string | null;
+  acquiredAt: string | null;
+  estimatedAge: number | null;
+  height: number | null;
+  width: number | null;
+  potDetails: string | null;
+  isPublic: boolean;
+}
+
+/**
  * Convert form data to API payload
  */
-function formDataToPayload(formData: BonsaiFormData): Record<string, unknown> {
+function formDataToPayload(formData: BonsaiFormData): BonsaiPayload {
   return {
     name: formData.name.trim(),
     description: formData.description.trim() || null,
@@ -233,14 +254,35 @@ function formDataToPayload(formData: BonsaiFormData): Record<string, unknown> {
 }
 
 /**
+ * Normalize form data for comparison (trim strings)
+ * This ensures isDirty and getChangedFields use the same comparison logic
+ */
+function normalizeFormDataForComparison(
+  formData: BonsaiFormData
+): BonsaiFormData {
+  return {
+    name: formData.name.trim(),
+    description: formData.description.trim(),
+    speciesId: formData.speciesId,
+    styleId: formData.styleId,
+    acquiredAt: formData.acquiredAt,
+    estimatedAge: formData.estimatedAge.trim(),
+    height: formData.height.trim(),
+    width: formData.width.trim(),
+    potDetails: formData.potDetails.trim(),
+    isPublic: formData.isPublic,
+  };
+}
+
+/**
  * Get only changed fields for PATCH request
  */
 function getChangedFields(
   formData: BonsaiFormData,
   initialData: BonsaiDetailResponse
-): Record<string, unknown> | null {
+): Partial<BonsaiPayload> | null {
   const payload = formDataToPayload(formData);
-  const changes: Record<string, unknown> = {};
+  const changes: Partial<BonsaiPayload> = {};
 
   // Compare each field
   if (payload.name !== initialData.name) {
@@ -291,26 +333,29 @@ export function useBonsaiForm({
   const [formData, setFormData] = useState<BonsaiFormData>(() =>
     initializeFormData(initialData)
   );
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<BonsaiFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Check if form has been modified
+  // Check if form has been modified (using normalized/trimmed values)
   const isDirty = useMemo(() => {
     if (!initialData) return true; // New form is always "dirty"
 
     const initial = initializeFormData(initialData);
+    const normalizedInitial = normalizeFormDataForComparison(initial);
+    const normalizedCurrent = normalizeFormDataForComparison(formData);
+
     return (
-      formData.name !== initial.name ||
-      formData.description !== initial.description ||
-      formData.speciesId !== initial.speciesId ||
-      formData.styleId !== initial.styleId ||
-      formData.acquiredAt !== initial.acquiredAt ||
-      formData.estimatedAge !== initial.estimatedAge ||
-      formData.height !== initial.height ||
-      formData.width !== initial.width ||
-      formData.potDetails !== initial.potDetails ||
-      formData.isPublic !== initial.isPublic
+      normalizedCurrent.name !== normalizedInitial.name ||
+      normalizedCurrent.description !== normalizedInitial.description ||
+      normalizedCurrent.speciesId !== normalizedInitial.speciesId ||
+      normalizedCurrent.styleId !== normalizedInitial.styleId ||
+      normalizedCurrent.acquiredAt !== normalizedInitial.acquiredAt ||
+      normalizedCurrent.estimatedAge !== normalizedInitial.estimatedAge ||
+      normalizedCurrent.height !== normalizedInitial.height ||
+      normalizedCurrent.width !== normalizedInitial.width ||
+      normalizedCurrent.potDetails !== normalizedInitial.potDetails ||
+      normalizedCurrent.isPublic !== normalizedInitial.isPublic
     );
   }, [formData, initialData]);
 
@@ -332,10 +377,10 @@ export function useBonsaiForm({
     []
   );
 
-  // Validate a single field
-  const validateField = useCallback((field: keyof BonsaiFormData) => {
-    setFormData((currentData) => {
-      const error = validateSingleField(field, currentData[field]);
+  // Validate a single field (using formData from dependency)
+  const validateField = useCallback(
+    (field: keyof BonsaiFormData) => {
+      const error = validateSingleField(field, formData[field]);
       setErrors((prev) => {
         if (error) {
           return { ...prev, [field]: error };
@@ -343,9 +388,9 @@ export function useBonsaiForm({
         const { [field]: _, ...rest } = prev;
         return rest;
       });
-      return currentData;
-    });
-  }, []);
+    },
+    [formData]
+  );
 
   // Clear error for a field
   const clearError = useCallback((field: keyof BonsaiFormData) => {
@@ -357,7 +402,7 @@ export function useBonsaiForm({
 
   // Validate all fields
   const validateAll = useCallback((): boolean => {
-    const newErrors: Record<string, string> = {};
+    const newErrors: BonsaiFormErrors = {};
     const fields: (keyof BonsaiFormData)[] = [
       "name",
       "description",
@@ -400,7 +445,7 @@ export function useBonsaiForm({
       try {
         let url: string;
         let method: string;
-        let body: Record<string, unknown>;
+        let body: BonsaiPayload | Partial<BonsaiPayload>;
 
         if (isEditMode && initialData) {
           // Edit mode: PATCH with only changed fields
@@ -437,8 +482,19 @@ export function useBonsaiForm({
           );
         }
 
-        const result = await response.json();
-        const bonsaiId = isEditMode ? initialData!.id : result.id;
+        // Only parse JSON if there's content (handle 204 No Content for PATCH)
+        let bonsaiId: string;
+        const contentType = response.headers.get("Content-Type");
+        if (
+          response.status !== 204 &&
+          contentType?.includes("application/json")
+        ) {
+          const result = await response.json();
+          bonsaiId = isEditMode ? initialData!.id : result.id;
+        } else {
+          // For PATCH with no content, use the existing ID
+          bonsaiId = initialData!.id;
+        }
 
         if (onSuccess) {
           onSuccess(bonsaiId);

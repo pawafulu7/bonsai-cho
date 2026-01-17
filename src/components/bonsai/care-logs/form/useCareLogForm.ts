@@ -29,6 +29,11 @@ export interface CareLogFormData {
 }
 
 /**
+ * Type-safe error record for form fields
+ */
+export type CareLogFormErrors = Partial<Record<keyof CareLogFormData, string>>;
+
+/**
  * Options for useCareLogForm hook
  */
 export interface UseCareLogFormOptions {
@@ -52,7 +57,7 @@ export interface UseCareLogFormReturn {
   ) => void;
 
   // Validation
-  errors: Record<string, string>;
+  errors: CareLogFormErrors;
   validateField: (field: keyof CareLogFormData) => void;
   validateAll: () => boolean;
   clearError: (field: keyof CareLogFormData) => void;
@@ -143,7 +148,7 @@ export function useCareLogForm({
 }: UseCareLogFormOptions): UseCareLogFormReturn {
   // Form state
   const [formData, setFormData] = useState<CareLogFormData>(initializeFormData);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<CareLogFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -165,10 +170,10 @@ export function useCareLogForm({
     []
   );
 
-  // Validate a single field
-  const validateField = useCallback((field: keyof CareLogFormData) => {
-    setFormData((currentData) => {
-      const error = validateSingleField(field, currentData[field]);
+  // Validate a single field (using formData from dependency)
+  const validateField = useCallback(
+    (field: keyof CareLogFormData) => {
+      const error = validateSingleField(field, formData[field]);
       setErrors((prev) => {
         if (error) {
           return { ...prev, [field]: error };
@@ -176,9 +181,9 @@ export function useCareLogForm({
         const { [field]: _, ...rest } = prev;
         return rest;
       });
-      return currentData;
-    });
-  }, []);
+    },
+    [formData]
+  );
 
   // Clear error for a field
   const clearError = useCallback((field: keyof CareLogFormData) => {
@@ -190,7 +195,7 @@ export function useCareLogForm({
 
   // Validate all fields
   const validateAll = useCallback((): boolean => {
-    const newErrors: Record<string, string> = {};
+    const newErrors: CareLogFormErrors = {};
     const fields: (keyof CareLogFormData)[] = [
       "careType",
       "description",

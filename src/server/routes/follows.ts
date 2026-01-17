@@ -7,6 +7,7 @@
 
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import { generateId } from "@/lib/auth/crypto";
 import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
@@ -179,7 +180,7 @@ follows.post("/:userId/follow", async (c) => {
     return c.json(
       {
         error: "Invalid user ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -253,7 +254,7 @@ follows.delete("/:userId/follow", async (c) => {
     return c.json(
       {
         error: "Invalid user ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -316,7 +317,7 @@ follows.get("/:userId/followers", async (c) => {
     return c.json(
       {
         error: "Invalid user ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -334,7 +335,7 @@ follows.get("/:userId/followers", async (c) => {
     return c.json(
       {
         error: "Invalid query parameters",
-        details: queryResult.error.flatten().fieldErrors,
+        details: z.treeifyError(queryResult.error),
       },
       400
     );
@@ -442,7 +443,6 @@ follows.get("/:userId/followers", async (c) => {
 
 follows.get("/:userId/following", async (c) => {
   const db = c.get("db");
-  const _currentUserId = c.get("userId");
 
   // Validate userId
   const paramResult = userIdParamSchema.safeParse({
@@ -453,7 +453,7 @@ follows.get("/:userId/following", async (c) => {
     return c.json(
       {
         error: "Invalid user ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -471,7 +471,7 @@ follows.get("/:userId/following", async (c) => {
     return c.json(
       {
         error: "Invalid query parameters",
-        details: queryResult.error.flatten().fieldErrors,
+        details: z.treeifyError(queryResult.error),
       },
       400
     );

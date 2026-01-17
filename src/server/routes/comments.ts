@@ -7,6 +7,7 @@
 
 import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import { generateId } from "@/lib/auth/crypto";
 import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
@@ -220,7 +221,7 @@ comments.get("/:bonsaiId/comments", async (c) => {
     return c.json(
       {
         error: "Invalid bonsai ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -238,7 +239,7 @@ comments.get("/:bonsaiId/comments", async (c) => {
     return c.json(
       {
         error: "Invalid query parameters",
-        details: queryResult.error.flatten().fieldErrors,
+        details: z.treeifyError(queryResult.error),
       },
       400
     );
@@ -349,7 +350,7 @@ comments.post("/:bonsaiId/comments", async (c) => {
     return c.json(
       {
         error: "Invalid bonsai ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -376,7 +377,7 @@ comments.post("/:bonsaiId/comments", async (c) => {
     return c.json(
       {
         error: "Invalid request body",
-        details: bodyResult.error.flatten().fieldErrors,
+        details: z.treeifyError(bodyResult.error),
       },
       400
     );
@@ -437,7 +438,7 @@ comments.patch("/:bonsaiId/comments/:commentId", async (c) => {
     return c.json(
       {
         error: "Invalid parameters",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -490,7 +491,7 @@ comments.patch("/:bonsaiId/comments/:commentId", async (c) => {
     return c.json(
       {
         error: "Invalid request body",
-        details: bodyResult.error.flatten().fieldErrors,
+        details: z.treeifyError(bodyResult.error),
       },
       400
     );
@@ -538,7 +539,7 @@ comments.delete("/:bonsaiId/comments/:commentId", async (c) => {
     return c.json(
       {
         error: "Invalid parameters",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );

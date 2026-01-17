@@ -78,9 +78,8 @@ export const createBonsaiSchema = z.object({
     .optional()
     .nullable(),
 
-  acquiredAt: z
-    .string()
-    .datetime({ message: "Invalid datetime format. Use ISO 8601 format." })
+  acquiredAt: z.iso
+    .datetime({ error: "Invalid datetime format. Use ISO 8601 format." })
     .optional()
     .nullable()
     .refine(
@@ -167,9 +166,8 @@ export const createCareLogSchema = z.object({
     .nullable()
     .transform((val) => val?.trim() || null),
 
-  performedAt: z
-    .string()
-    .datetime({ message: "Invalid datetime format. Use ISO 8601 format." })
+  performedAt: z.iso
+    .datetime({ error: "Invalid datetime format. Use ISO 8601 format." })
     .refine((val) => new Date(val) <= new Date(), {
       message: "Performed date cannot be in the future",
     }),
@@ -191,14 +189,10 @@ export const updateCareLogSchema = createCareLogSchema
  */
 export const careLogFilterSchema = z.object({
   careType: careTypeEnum.optional(),
-  from: z
-    .string()
-    .datetime({ message: "Invalid datetime format for 'from'" })
+  from: z.iso
+    .datetime({ error: "Invalid datetime format for 'from'" })
     .optional(),
-  to: z
-    .string()
-    .datetime({ message: "Invalid datetime format for 'to'" })
-    .optional(),
+  to: z.iso.datetime({ error: "Invalid datetime format for 'to'" }).optional(),
 });
 
 // ============================================================================

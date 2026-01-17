@@ -46,7 +46,7 @@ type Variables = {
 
 export const uploadQuerySchema = z.object({
   caption: z.string().max(500).optional(),
-  takenAt: z.string().datetime().optional(),
+  takenAt: z.iso.datetime().optional(),
 });
 
 export const imageIdParamSchema = z.object({
@@ -207,7 +207,10 @@ images.post("/:bonsaiId/images", async (c) => {
   });
   if (!queryResult.success) {
     return c.json(
-      { error: "Invalid parameters", details: queryResult.error.flatten() },
+      {
+        error: "Invalid parameters",
+        details: z.treeifyError(queryResult.error),
+      },
       400
     );
   }
@@ -438,7 +441,10 @@ images.patch("/:bonsaiId/images/reorder", async (c) => {
   const bodyResult = reorderSchema.safeParse(body);
   if (!bodyResult.success) {
     return c.json(
-      { error: "Invalid request body", details: bodyResult.error.flatten() },
+      {
+        error: "Invalid request body",
+        details: z.treeifyError(bodyResult.error),
+      },
       400
     );
   }
@@ -537,7 +543,10 @@ images.patch("/:bonsaiId/images/:imageId", async (c) => {
   const bodyResult = updateImageSchema.safeParse(body);
   if (!bodyResult.success) {
     return c.json(
-      { error: "Invalid request body", details: bodyResult.error.flatten() },
+      {
+        error: "Invalid request body",
+        details: z.treeifyError(bodyResult.error),
+      },
       400
     );
   }

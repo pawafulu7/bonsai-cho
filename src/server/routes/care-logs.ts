@@ -7,6 +7,7 @@
 
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import { generateId } from "@/lib/auth/crypto";
 import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
@@ -151,7 +152,7 @@ careLogs.get("/:bonsaiId/care-logs", async (c) => {
     return c.json(
       {
         error: "Invalid query parameters",
-        details: queryResult.error.flatten().fieldErrors,
+        details: z.treeifyError(queryResult.error),
       },
       400
     );
@@ -271,7 +272,7 @@ careLogs.post("/:bonsaiId/care-logs", async (c) => {
       return c.json(
         {
           error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
+          details: z.treeifyError(parseResult.error),
         },
         400
       );
@@ -352,7 +353,7 @@ careLogs.patch("/:bonsaiId/care-logs/:logId", async (c) => {
       return c.json(
         {
           error: "Validation failed",
-          details: parseResult.error.flatten().fieldErrors,
+          details: z.treeifyError(parseResult.error),
         },
         400
       );

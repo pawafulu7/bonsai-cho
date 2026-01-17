@@ -7,11 +7,6 @@
  */
 import AppLayout from "@/layouts/AppLayout.astro";
 import { BonsaiCardGrid } from "@/components/bonsai/list/BonsaiCardGrid";
-import { BonsaiListSkeleton } from "@/components/bonsai/list/BonsaiListSkeleton";
-import { getAuthData } from "@/lib/auth/server";
-
-// Get auth data
-const { user, csrfToken } = await getAuthData(Astro);
 
 // SSR: Fetch initial bonsai list
 let initialData = { data: [], nextCursor: null, hasMore: false };

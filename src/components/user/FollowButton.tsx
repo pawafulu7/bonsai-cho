@@ -40,7 +40,7 @@ export function FollowButton({
 
     // Optimistic update
     const newFollowing = !following;
-    const newCount = following ? count - 1 : count + 1;
+    const newCount = following ? Math.max(0, count - 1) : count + 1;
     setFollowing(newFollowing);
     setCount(newCount);
     setIsPending(true);

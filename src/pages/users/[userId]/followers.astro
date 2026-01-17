@@ -33,12 +33,15 @@ try {
   const cookieHeader = Astro.request.headers.get("cookie") || "";
 
   const [profileRes, followersRes] = await Promise.all([
-    fetch(`${Astro.url.origin}/api/users/${userId}`, {
+    fetch(`${Astro.url.origin}/api/users/${encodeURIComponent(userId)}`, {
       headers: { Cookie: cookieHeader },
     }),
-    fetch(`${Astro.url.origin}/api/users/${userId}/followers?limit=20`, {
-      headers: { Cookie: cookieHeader },
-    }),
+    fetch(
+      `${Astro.url.origin}/api/users/${encodeURIComponent(userId)}/followers?limit=20`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    ),
   ]);
 
   if (profileRes.status === 404) {
@@ -53,6 +56,8 @@ try {
 
   if (followersRes.ok) {
     followerList = await followersRes.json();
+  } else if (!fetchError) {
+    fetchError = "フォロワー情報の取得に失敗しました";
   }
 } catch (e) {
   console.error("Error fetching followers:", e);

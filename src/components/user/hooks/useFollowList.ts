@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
+  FollowListUser,
   UseFollowListOptions,
   UseFollowListReturn,
   UserCardProps,
@@ -26,7 +27,8 @@ export function useFollowList({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [cursor, setCursor] = useState<string | null>(null);
+  // Use ref to avoid stale closure issues with cursor in useCallback dependencies
+  const cursorRef = useRef<string | null>(null);
 
   const fetchUsers = useCallback(
     async (loadMore = false) => {
@@ -39,8 +41,8 @@ export function useFollowList({
 
       try {
         const params = new URLSearchParams({ limit: String(limit) });
-        if (loadMore && cursor) {
-          params.set("cursor", cursor);
+        if (loadMore && cursorRef.current) {
+          params.set("cursor", cursorRef.current);
         }
 
         const response = await fetch(
@@ -59,13 +61,7 @@ export function useFollowList({
 
         // Map API response to UserCardProps
         const newUsers: UserCardProps[] = data.data.map(
-          (user: {
-            id: string;
-            name: string;
-            displayName: string | null;
-            avatarUrl: string | null;
-            isFollowing?: boolean;
-          }) => ({
+          (user: FollowListUser) => ({
             id: user.id,
             name: user.name,
             displayName: user.displayName,
@@ -83,7 +79,7 @@ export function useFollowList({
         }
 
         setHasMore(data.hasMore);
-        setCursor(data.nextCursor);
+        cursorRef.current = data.nextCursor;
       } catch (err) {
         setError(err instanceof Error ? err : new Error("Unknown error"));
       } finally {
@@ -91,7 +87,7 @@ export function useFollowList({
         setIsLoadingMore(false);
       }
     },
-    [userId, type, limit, cursor, csrfToken]
+    [userId, type, limit, csrfToken]
   );
 
   // Auto-initialize via useEffect (proper React pattern)

@@ -33,12 +33,15 @@ try {
   const cookieHeader = Astro.request.headers.get("cookie") || "";
 
   const [profileRes, followingRes] = await Promise.all([
-    fetch(`${Astro.url.origin}/api/users/${userId}`, {
+    fetch(`${Astro.url.origin}/api/users/${encodeURIComponent(userId)}`, {
       headers: { Cookie: cookieHeader },
     }),
-    fetch(`${Astro.url.origin}/api/users/${userId}/following?limit=20`, {
-      headers: { Cookie: cookieHeader },
-    }),
+    fetch(
+      `${Astro.url.origin}/api/users/${encodeURIComponent(userId)}/following?limit=20`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    ),
   ]);
 
   if (profileRes.status === 404) {
@@ -53,6 +56,8 @@ try {
 
   if (followingRes.ok) {
     followingList = await followingRes.json();
+  } else if (!fetchError) {
+    fetchError = "フォロー中情報の取得に失敗しました";
   }
 } catch (e) {
   console.error("Error fetching following:", e);

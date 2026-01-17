@@ -35,12 +35,15 @@ try {
   const cookieHeader = Astro.request.headers.get("cookie") || "";
 
   const [profileRes, bonsaiRes] = await Promise.all([
-    fetch(`${Astro.url.origin}/api/users/${userId}`, {
+    fetch(`${Astro.url.origin}/api/users/${encodeURIComponent(userId)}`, {
       headers: { Cookie: cookieHeader },
     }),
-    fetch(`${Astro.url.origin}/api/bonsai?userId=${userId}&limit=12`, {
-      headers: { Cookie: cookieHeader },
-    }),
+    fetch(
+      `${Astro.url.origin}/api/bonsai?userId=${encodeURIComponent(userId)}&limit=12`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    ),
   ]);
 
   if (profileRes.status === 404) {
@@ -55,6 +58,8 @@ try {
 
   if (bonsaiRes.ok) {
     bonsaiList = await bonsaiRes.json();
+  } else if (!fetchError) {
+    fetchError = "盆栽情報の取得に失敗しました";
   }
 } catch (e) {
   console.error("Error fetching user profile:", e);

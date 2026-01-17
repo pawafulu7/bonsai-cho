@@ -52,6 +52,22 @@ export interface UpdateProfileResponse {
 }
 
 // ============================================================================
+// Internal Types
+// ============================================================================
+
+/**
+ * User data from follow list API response
+ * Used for mapping API response to UserCardProps
+ */
+export interface FollowListUser {
+  id: string;
+  name: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isFollowing?: boolean;
+}
+
+// ============================================================================
 // Component Props
 // ============================================================================
 

@@ -25,8 +25,8 @@ export function UserCard({
   // Get display name with fallback
   const userDisplayName = displayName || name;
 
-  // Get initials for avatar fallback
-  const initials = userDisplayName
+  // Get initials for avatar fallback (defensive: handle empty/whitespace names)
+  const initials = (userDisplayName?.trim() || "?")
     .split(/\s+/)
     .map((part) => part[0])
     .join("")

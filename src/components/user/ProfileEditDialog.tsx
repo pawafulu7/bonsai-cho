@@ -40,7 +40,7 @@ interface FormErrors {
  * - Radix Dialog with focus trap
  * - Form validation with error messages
  * - aria-describedby for error messages
- * - Optimistic update with rollback
+ * - Server-side update with loading state
  * - Return focus to trigger after close
  */
 export function ProfileEditDialog({
@@ -125,8 +125,16 @@ export function ProfileEditDialog({
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "プロフィールの更新に失敗しました");
+        let errorMessage = "プロフィールの更新に失敗しました";
+        try {
+          const data = await response.json();
+          if (data.error) {
+            errorMessage = data.error;
+          }
+        } catch {
+          // JSON parse failed, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data: UpdateProfileResponse = await response.json();

@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from "vitest";
 
+import type { UpdateProfileResponse, UserProfile } from "@/types/user";
 import { updateProfileSchema, userIdParamSchema } from "./users.schema";
 
 describe("Users API Schemas", () => {
@@ -177,22 +178,8 @@ describe("Users API Schemas", () => {
 });
 
 describe("Users Response Types", () => {
-  it("should have correct UserProfileResponse structure", () => {
-    const response: {
-      id: string;
-      name: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-      bio: string | null;
-      location: string | null;
-      website: string | null;
-      followerCount: number;
-      followingCount: number;
-      bonsaiCount: number;
-      isFollowing: boolean | null;
-      isSelf: boolean;
-      createdAt: string;
-    } = {
+  it("should have correct UserProfile structure", () => {
+    const response: UserProfile = {
       id: "user123",
       name: "testuser",
       displayName: "Test User",
@@ -215,10 +202,7 @@ describe("Users Response Types", () => {
   });
 
   it("should allow null isFollowing when not authenticated", () => {
-    const response: {
-      isFollowing: boolean | null;
-      isSelf: boolean;
-    } = {
+    const response: Partial<UserProfile> = {
       isFollowing: null,
       isSelf: false,
     };
@@ -227,16 +211,7 @@ describe("Users Response Types", () => {
   });
 
   it("should have correct UpdateProfileResponse structure", () => {
-    const response: {
-      id: string;
-      name: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-      bio: string | null;
-      location: string | null;
-      website: string | null;
-      updatedAt: string;
-    } = {
+    const response: UpdateProfileResponse = {
       id: "user123",
       name: "testuser",
       displayName: "Updated Name",

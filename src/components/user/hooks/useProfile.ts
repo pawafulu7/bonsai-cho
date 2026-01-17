@@ -48,12 +48,12 @@ export function useProfile({
     }
   }, [userId]);
 
-  // Fetch on mount if no initial data
+  // Fetch on mount if no initial data, or when userId changes with stale data
   useEffect(() => {
-    if (!initialData) {
+    if (!initialData || initialData.id !== userId) {
       fetchProfile();
     }
-  }, [initialData, fetchProfile]);
+  }, [initialData, userId, fetchProfile]);
 
   const refetch = useCallback(async () => {
     await fetchProfile();

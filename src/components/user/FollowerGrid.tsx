@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { FollowerGridProps, UserCardProps } from "@/types/user";
+import type {
+  FollowerGridProps,
+  FollowListUser,
+  UserCardProps,
+} from "@/types/user";
 import { UserCard } from "./UserCard";
 
 /**
@@ -27,6 +31,7 @@ export function FollowerGrid({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isLoading, setIsLoading] = useState(false);
   const [loadCount, setLoadCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   // Load more users
@@ -34,6 +39,7 @@ export function FollowerGrid({
     if (isLoading || !hasMore) return;
 
     setIsLoading(true);
+    setError(null);
 
     try {
       const params = new URLSearchParams({ limit: "20" });
@@ -54,13 +60,7 @@ export function FollowerGrid({
 
       // Map API response to UserCardProps
       const newUsers: UserCardProps[] = data.data.map(
-        (user: {
-          id: string;
-          name: string;
-          displayName: string | null;
-          avatarUrl: string | null;
-          isFollowing?: boolean;
-        }) => ({
+        (user: FollowListUser) => ({
           id: user.id,
           name: user.name,
           displayName: user.displayName,
@@ -75,8 +75,9 @@ export function FollowerGrid({
       setHasMore(data.hasMore);
       setCursor(data.nextCursor);
       setLoadCount((prev) => prev + 1);
-    } catch (error) {
-      console.error(`Error loading ${type}:`, error);
+    } catch (err) {
+      console.error(`Error loading ${type}:`, err);
+      setError("読み込みに失敗しました。もう一度お試しください。");
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +119,7 @@ export function FollowerGrid({
   const typeLabel = type === "followers" ? "フォロワー" : "フォロー中";
 
   // Empty state
-  if (users.length === 0 && !isLoading) {
+  if (users.length === 0 && !isLoading && !error) {
     return (
       <div className="text-center py-16">
         <p className="text-muted-foreground text-lg">
@@ -158,6 +159,16 @@ export function FollowerGrid({
           />
         ))}
       </div>
+
+      {/* Error state */}
+      {error && (
+        <div className="text-center py-4">
+          <p className="text-destructive mb-2">{error}</p>
+          <Button variant="outline" onClick={loadMore}>
+            再試行
+          </Button>
+        </div>
+      )}
 
       {/* Loading indicator */}
       {isLoading && (

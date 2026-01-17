@@ -399,8 +399,8 @@ follows.get("/:userId/followers", async (c) => {
     const hasMore = results.length > limit;
     const data = hasMore ? results.slice(0, limit) : results;
 
-    // Check if current user is following target user
-    let isFollowing = false;
+    // Check if current user is following target user (only if authenticated)
+    let isFollowing: boolean | undefined;
     if (currentUserId) {
       const [follow] = await db
         .select({ id: schema.follows.id })
@@ -459,7 +459,7 @@ follows.get("/:userId/followers", async (c) => {
       data: responseData,
       nextCursor,
       hasMore,
-      isFollowing,
+      ...(isFollowing !== undefined ? { isFollowing } : {}),
     };
 
     return c.json(response, 200);

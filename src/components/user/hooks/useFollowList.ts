@@ -94,6 +94,8 @@ export function useFollowList({
   // Re-fetch when userId or type changes
   // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally depend on userId/type to refetch on change
   useEffect(() => {
+    // Reset cursor when userId/type changes to prevent stale pagination
+    cursorRef.current = null;
     fetchUsers(false);
   }, [userId, type]);
 

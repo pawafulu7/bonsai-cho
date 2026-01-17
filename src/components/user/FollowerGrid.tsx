@@ -48,7 +48,7 @@ export function FollowerGrid({
       }
 
       const response = await fetch(
-        `/api/users/${userId}/${type}?${params.toString()}`,
+        `/api/users/${encodeURIComponent(userId)}/${type}?${params.toString()}`,
         { credentials: "include" }
       );
 

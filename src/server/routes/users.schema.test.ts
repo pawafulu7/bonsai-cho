@@ -248,6 +248,56 @@ describe("users.schema", () => {
         expect(result.success).toBe(false);
       });
 
+      it("should reject javascript: scheme (XSS prevention)", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "javascript:alert('xss')",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject data: scheme (XSS prevention)", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "data:text/html,<script>alert('xss')</script>",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject invalid URL format", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "not a valid url",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should reject URL with only scheme", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "https://",
+        });
+        expect(result.success).toBe(false);
+      });
+
+      it("should trim whitespace from URL", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "  https://example.com  ",
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.website).toBe("https://example.com");
+        }
+      });
+
+      it("should accept URL with path and query", () => {
+        const result = updateProfileSchema.safeParse({
+          website: "https://example.com/path?query=value",
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.website).toBe(
+            "https://example.com/path?query=value"
+          );
+        }
+      });
+
       it("should transform empty string to null", () => {
         const result = updateProfileSchema.safeParse({
           website: "",

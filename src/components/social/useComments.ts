@@ -19,6 +19,7 @@ export function useComments({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [isPending, setIsPending] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | null>(
     initialNextCursor
   );
@@ -37,7 +38,7 @@ export function useComments({
   const addComment = useCallback(
     async (content: string) => {
       // Block while submitting or during delete operation (prevents rollback data loss)
-      if (isSubmitting || isPending) return;
+      if (isSubmitting || isDeleting) return;
       setIsSubmitting(true);
 
       try {
@@ -60,19 +61,20 @@ export function useComments({
         setIsSubmitting(false);
       }
     },
-    [bonsaiId, getHeaders, isSubmitting, isPending]
+    [bonsaiId, getHeaders, isSubmitting, isDeleting]
   );
 
   // Delete a comment (optimistic update)
   const deleteComment = useCallback(
     async (commentId: string) => {
-      if (isPending) return;
+      // Block during delete or submit to prevent rollback data loss
+      if (isDeleting || isSubmitting) return;
 
       const prevComments = comments;
 
       // Optimistic update
       setComments((prev) => prev.filter((c) => c.id !== commentId));
-      setIsPending(true);
+      setIsDeleting(true);
 
       try {
         const response = await fetch(
@@ -91,10 +93,10 @@ export function useComments({
         // Rollback on error
         setComments(prevComments);
       } finally {
-        setIsPending(false);
+        setIsDeleting(false);
       }
     },
-    [bonsaiId, comments, getHeaders, isPending]
+    [bonsaiId, comments, getHeaders, isDeleting, isSubmitting]
   );
 
   // Load more comments (pagination)

@@ -1,0 +1,171 @@
+---
+/**
+ * User Profile Page
+ *
+ * Displays user profile with their bonsai collection.
+ * SSR fetches initial data for SEO and authenticated state.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { ProfileHeader } from "@/components/user/ProfileHeader";
+import { BonsaiCardGrid } from "@/components/bonsai/list/BonsaiCardGrid";
+import { getAuthData } from "@/lib/auth/server";
+import type { UserProfile } from "@/types/user";
+import type { BonsaiListItemWithSocial } from "@/types/social";
+
+// Get route params
+const { userId } = Astro.params;
+
+if (!userId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Get auth data
+const { user, csrfToken } = await getAuthData(Astro);
+
+// SSR: Fetch user profile and their bonsai in parallel
+let profile: UserProfile | null = null;
+let bonsaiList = {
+  data: [],
+  hasMore: false,
+  nextCursor: null as string | null,
+};
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const [profileRes, bonsaiRes] = await Promise.all([
+    fetch(`${Astro.url.origin}/api/users/${encodeURIComponent(userId)}`, {
+      headers: { Cookie: cookieHeader },
+    }),
+    fetch(
+      `${Astro.url.origin}/api/bonsai?userId=${encodeURIComponent(userId)}&limit=12`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    ),
+  ]);
+
+  if (profileRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!profileRes.ok) {
+    fetchError = "ユーザー情報の取得に失敗しました";
+  } else {
+    profile = await profileRes.json();
+  }
+
+  if (bonsaiRes.ok) {
+    bonsaiList = await bonsaiRes.json();
+  } else if (!fetchError) {
+    fetchError = "盆栽情報の取得に失敗しました";
+  }
+} catch (e) {
+  console.error("Error fetching user profile:", e);
+  fetchError = "ユーザー情報の取得に失敗しました";
+}
+
+// Page metadata
+const displayName = profile?.displayName || profile?.name || "ユーザー";
+const pageTitle = `${displayName}のプロフィール | Bonsai-Cho`;
+const pageDescription = profile?.bio || `${displayName}の盆栽コレクション`;
+
+// Transform bonsai data for BonsaiCardGrid
+const initialBonsaiData: BonsaiListItemWithSocial[] = bonsaiList.data.map(
+  (bonsai: {
+    id: string;
+    name: string;
+    description: string | null;
+    speciesId: string | null;
+    styleId: string | null;
+    primaryImageUrl: string | null;
+    thumbnailUrl: string | null;
+    imageCount: number;
+    likeCount: number;
+    commentCount: number;
+    isPublic: boolean;
+    createdAt: string;
+    updatedAt: string;
+    species: { nameJa: string } | null;
+    style: { nameJa: string } | null;
+  }) => ({
+    id: bonsai.id,
+    name: bonsai.name,
+    description: bonsai.description,
+    speciesId: bonsai.speciesId,
+    speciesNameJa: bonsai.species?.nameJa || null,
+    styleId: bonsai.styleId,
+    styleNameJa: bonsai.style?.nameJa || null,
+    primaryImageUrl: bonsai.primaryImageUrl,
+    thumbnailUrl: bonsai.thumbnailUrl,
+    imageCount: bonsai.imageCount,
+    likeCount: bonsai.likeCount,
+    commentCount: bonsai.commentCount,
+    isPublic: bonsai.isPublic,
+    createdAt: bonsai.createdAt,
+    updatedAt: bonsai.updatedAt,
+  })
+);
+---
+
+<AppLayout
+  title={pageTitle}
+  description={pageDescription}
+>
+  <div class="container-app py-8">
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-8 text-center text-destructive">
+        <p class="text-lg">{fetchError}</p>
+        <a href="/bonsai" class="mt-4 inline-block text-sm underline hover:no-underline">
+          一覧に戻る
+        </a>
+      </div>
+    )}
+
+    {profile && (
+      <div class="space-y-8">
+        <!-- Profile Header -->
+        <ProfileHeader
+          client:load
+          profile={profile}
+          csrfToken={csrfToken || undefined}
+          isAuthenticated={!!user}
+        />
+
+        <!-- Bonsai Collection -->
+        <section aria-labelledby="bonsai-heading">
+          <h2 id="bonsai-heading" class="font-serif text-2xl font-bold text-foreground mb-6">
+            盆栽コレクション
+          </h2>
+
+          {initialBonsaiData.length > 0 ? (
+            <BonsaiCardGrid
+              client:visible
+              initialData={initialBonsaiData}
+              initialCursor={bonsaiList.nextCursor}
+              initialHasMore={bonsaiList.hasMore}
+            />
+          ) : (
+            <div class="text-center py-12 bg-muted/30 rounded-lg">
+              <p class="text-muted-foreground">
+                {profile.isSelf
+                  ? "まだ盆栽が登録されていません"
+                  : "このユーザーはまだ盆栽を公開していません"}
+              </p>
+              {profile.isSelf && (
+                <a
+                  href="/bonsai/new"
+                  class="mt-4 inline-block text-primary hover:underline"
+                >
+                  最初の盆栽を登録する
+                </a>
+              )}
+            </div>
+          )}
+        </section>
+      </div>
+    )}
+  </div>
+</AppLayout>

@@ -12,6 +12,7 @@ import followsRoutes from "./routes/follows";
 import imagesRoutes from "./routes/images";
 import likesRoutes from "./routes/likes";
 import mastersRoutes from "./routes/masters";
+import usersRoutes from "./routes/users";
 
 // Create Hono app with environment bindings type
 type Bindings = {
@@ -129,6 +130,9 @@ api.route("/bonsai", commentsRoutes);
 
 // Social: Follows routes (nested under users)
 api.route("/users", followsRoutes);
+
+// User profile routes
+api.route("/users", usersRoutes);
 
 // 404 handler
 app.notFound((c) => {

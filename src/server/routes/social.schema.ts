@@ -37,6 +37,14 @@ export interface UserSummary {
 }
 
 /**
+ * User summary with follow status for follower/following lists
+ * Includes isFollowing field to show whether the current user follows each user
+ */
+export interface UserSummaryWithFollowStatus extends UserSummary {
+  isFollowing: boolean;
+}
+
+/**
  * Like list response
  */
 export interface LikeListResponse {
@@ -119,9 +127,10 @@ export interface FollowResponse {
 
 /**
  * Follow list response (followers or following)
+ * data contains UserSummaryWithFollowStatus when authenticated, UserSummary when not
  */
 export interface FollowListResponse {
-  data: UserSummary[];
+  data: (UserSummary | UserSummaryWithFollowStatus)[];
   nextCursor: string | null;
   hasMore: boolean;
   isFollowing?: boolean; // Current user's follow status for target user

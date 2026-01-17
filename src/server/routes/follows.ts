@@ -21,6 +21,7 @@ import {
   type FollowResponse,
   paginationQuerySchema,
   type UserSummary,
+  type UserSummaryWithFollowStatus,
   userIdParamSchema,
 } from "./social.schema";
 
@@ -398,8 +399,8 @@ follows.get("/:userId/followers", async (c) => {
     const hasMore = results.length > limit;
     const data = hasMore ? results.slice(0, limit) : results;
 
-    // Check if current user is following target user
-    let isFollowing = false;
+    // Check if current user is following target user (only if authenticated)
+    let isFollowing: boolean | undefined;
     if (currentUserId) {
       const [follow] = await db
         .select({ id: schema.follows.id })
@@ -423,11 +424,42 @@ follows.get("/:userId/followers", async (c) => {
           })
         : null;
 
+    // Build response data with isFollowing for each user if authenticated
+    let responseData: (UserSummary | UserSummaryWithFollowStatus)[];
+    if (currentUserId) {
+      // Get follow status for each user in the list
+      const userIds = data.map((item) => item.user.id);
+      const followStatuses =
+        userIds.length > 0
+          ? await db
+              .select({ followingId: schema.follows.followingId })
+              .from(schema.follows)
+              .where(
+                and(
+                  eq(schema.follows.followerId, currentUserId),
+                  sql`${schema.follows.followingId} IN (${sql.join(
+                    userIds.map((id) => sql`${id}`),
+                    sql`, `
+                  )})`
+                )
+              )
+          : [];
+
+      const followingSet = new Set(followStatuses.map((f) => f.followingId));
+
+      responseData = data.map((item) => ({
+        ...item.user,
+        isFollowing: followingSet.has(item.user.id),
+      })) as UserSummaryWithFollowStatus[];
+    } else {
+      responseData = data.map((item) => item.user as UserSummary);
+    }
+
     const response: FollowListResponse = {
-      data: data.map((item) => item.user as UserSummary),
+      data: responseData,
       nextCursor,
       hasMore,
-      isFollowing,
+      ...(isFollowing !== undefined ? { isFollowing } : {}),
     };
 
     return c.json(response, 200);
@@ -443,6 +475,7 @@ follows.get("/:userId/followers", async (c) => {
 
 follows.get("/:userId/following", async (c) => {
   const db = c.get("db");
+  const currentUserId = c.get("userId");
 
   // Validate userId
   const paramResult = userIdParamSchema.safeParse({
@@ -543,8 +576,39 @@ follows.get("/:userId/following", async (c) => {
           })
         : null;
 
+    // Build response data with isFollowing for each user if authenticated
+    let responseData: (UserSummary | UserSummaryWithFollowStatus)[];
+    if (currentUserId) {
+      // Get follow status for each user in the list
+      const userIds = data.map((item) => item.user.id);
+      const followStatuses =
+        userIds.length > 0
+          ? await db
+              .select({ followingId: schema.follows.followingId })
+              .from(schema.follows)
+              .where(
+                and(
+                  eq(schema.follows.followerId, currentUserId),
+                  sql`${schema.follows.followingId} IN (${sql.join(
+                    userIds.map((id) => sql`${id}`),
+                    sql`, `
+                  )})`
+                )
+              )
+          : [];
+
+      const followingSet = new Set(followStatuses.map((f) => f.followingId));
+
+      responseData = data.map((item) => ({
+        ...item.user,
+        isFollowing: followingSet.has(item.user.id),
+      })) as UserSummaryWithFollowStatus[];
+    } else {
+      responseData = data.map((item) => item.user as UserSummary);
+    }
+
     const response: FollowListResponse = {
-      data: data.map((item) => item.user as UserSummary),
+      data: responseData,
       nextCursor,
       hasMore,
     };

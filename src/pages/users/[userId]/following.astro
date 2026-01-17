@@ -1,0 +1,154 @@
+---
+/**
+ * User Following Page
+ *
+ * Displays list of users that the target user follows.
+ * SSR fetches initial data for SEO and authenticated state.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { FollowerGrid } from "@/components/user/FollowerGrid";
+import { getAuthData } from "@/lib/auth/server";
+import type { UserProfile } from "@/types/user";
+
+// Get route params
+const { userId } = Astro.params;
+
+if (!userId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Get auth data
+const { user, csrfToken } = await getAuthData(Astro);
+
+// SSR: Fetch user profile and initial following
+let profile: UserProfile | null = null;
+let followingList = {
+  data: [],
+  hasMore: false,
+  nextCursor: null as string | null,
+};
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const [profileRes, followingRes] = await Promise.all([
+    fetch(`${Astro.url.origin}/api/users/${encodeURIComponent(userId)}`, {
+      headers: { Cookie: cookieHeader },
+    }),
+    fetch(
+      `${Astro.url.origin}/api/users/${encodeURIComponent(userId)}/following?limit=20`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    ),
+  ]);
+
+  if (profileRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!profileRes.ok) {
+    fetchError = "ユーザー情報の取得に失敗しました";
+  } else {
+    profile = await profileRes.json();
+  }
+
+  if (followingRes.ok) {
+    followingList = await followingRes.json();
+  } else if (!fetchError) {
+    fetchError = "フォロー中情報の取得に失敗しました";
+  }
+} catch (e) {
+  console.error("Error fetching following:", e);
+  fetchError = "フォロー中情報の取得に失敗しました";
+}
+
+// Page metadata
+const displayName = profile?.displayName || profile?.name || "ユーザー";
+const pageTitle = `${displayName}のフォロー中 | Bonsai-Cho`;
+const pageDescription = `${displayName}がフォローしているユーザー一覧`;
+
+// Transform data for FollowerGrid
+const initialData = followingList.data.map(
+  (user: {
+    id: string;
+    name: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    isFollowing?: boolean;
+  }) => ({
+    id: user.id,
+    name: user.name,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    isFollowing: user.isFollowing,
+    showFollowButton: true,
+  })
+);
+---
+
+<AppLayout
+  title={pageTitle}
+  description={pageDescription}
+>
+  <div class="container-app py-8">
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-8 text-center text-destructive">
+        <p class="text-lg">{fetchError}</p>
+        <a href="/bonsai" class="mt-4 inline-block text-sm underline hover:no-underline">
+          一覧に戻る
+        </a>
+      </div>
+    )}
+
+    {profile && (
+      <div class="space-y-8">
+        <!-- Breadcrumb / Back link -->
+        <nav aria-label="パンくずリスト">
+          <a
+            href={`/users/${profile.id}`}
+            class="text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-2"
+          >
+            <svg
+              class="w-4 h-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            {displayName}のプロフィールに戻る
+          </a>
+        </nav>
+
+        <!-- Header -->
+        <header>
+          <h1 class="font-serif text-3xl font-bold text-foreground">
+            {displayName}のフォロー中
+          </h1>
+          <p class="text-muted-foreground mt-2">
+            <span class="tabular-nums font-medium">{profile.followingCount}</span>人
+          </p>
+        </header>
+
+        <!-- Following Grid -->
+        <FollowerGrid
+          client:visible
+          userId={userId}
+          type="following"
+          initialData={initialData}
+          initialCursor={followingList.nextCursor}
+          initialHasMore={followingList.hasMore}
+          csrfToken={csrfToken || undefined}
+        />
+      </div>
+    )}
+  </div>
+</AppLayout>

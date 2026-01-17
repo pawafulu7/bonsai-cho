@@ -4,11 +4,11 @@ import { z } from "zod";
 // TURSO_DATABASE_URL and TURSO_AUTH_TOKEN are required for database operations
 const envSchema = z.object({
   // Turso Database (required)
-  TURSO_DATABASE_URL: z.string().url(),
+  TURSO_DATABASE_URL: z.url(),
   TURSO_AUTH_TOKEN: z.string().min(1, "TURSO_AUTH_TOKEN cannot be empty"),
 
   // App
-  PUBLIC_APP_URL: z.string().url().default("http://localhost:4321"),
+  PUBLIC_APP_URL: z.url().default("http://localhost:4321"),
 
   // OAuth (required for authentication)
   GITHUB_CLIENT_ID: z.string().min(1, "GITHUB_CLIENT_ID is required"),
@@ -27,7 +27,7 @@ const envSchema = z.object({
     .default("development"),
 
   // R2 Storage (optional - can use binding directly)
-  R2_PUBLIC_URL: z.string().url().optional(),
+  R2_PUBLIC_URL: z.url().optional(),
 });
 
 // Image upload constants (static)
@@ -47,7 +47,7 @@ export const parseEnv = (env: Record<string, string | undefined>) => {
 
   if (!result.success) {
     console.error("Invalid environment variables:");
-    console.error(result.error.flatten().fieldErrors);
+    console.error(z.treeifyError(result.error));
     throw new Error("Invalid environment variables");
   }
 

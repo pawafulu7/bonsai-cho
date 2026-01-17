@@ -7,6 +7,7 @@
 
 import { and, count, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { z } from "zod";
 
 import { generateId } from "@/lib/auth/crypto";
 import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
@@ -175,7 +176,7 @@ likes.post("/:bonsaiId/likes", async (c) => {
     return c.json(
       {
         error: "Invalid bonsai ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -238,7 +239,7 @@ likes.delete("/:bonsaiId/likes", async (c) => {
     return c.json(
       {
         error: "Invalid bonsai ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -295,7 +296,7 @@ likes.get("/:bonsaiId/likes", async (c) => {
     return c.json(
       {
         error: "Invalid bonsai ID",
-        details: paramResult.error.flatten().fieldErrors,
+        details: z.treeifyError(paramResult.error),
       },
       400
     );
@@ -313,7 +314,7 @@ likes.get("/:bonsaiId/likes", async (c) => {
     return c.json(
       {
         error: "Invalid query parameters",
-        details: queryResult.error.flatten().fieldErrors,
+        details: z.treeifyError(queryResult.error),
       },
       400
     );

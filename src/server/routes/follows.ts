@@ -442,7 +442,6 @@ follows.get("/:userId/followers", async (c) => {
 
 follows.get("/:userId/following", async (c) => {
   const db = c.get("db");
-  const _currentUserId = c.get("userId");
 
   // Validate userId
   const paramResult = userIdParamSchema.safeParse({

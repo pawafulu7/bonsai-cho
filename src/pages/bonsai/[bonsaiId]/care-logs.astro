@@ -19,7 +19,7 @@ if (!bonsaiId) {
 }
 
 // Get auth data
-const { user, csrfToken } = await getAuthData(Astro);
+const { user } = await getAuthData(Astro);
 
 // Require authentication
 if (!user) {

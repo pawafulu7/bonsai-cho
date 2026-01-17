@@ -2,7 +2,6 @@ import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -11,13 +10,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { getCurrentDate } from "@/lib/utils/form-helpers";
 import {
-  useBonsaiForm,
   type Species,
   type Style,
   type UseBonsaiFormOptions,
+  useBonsaiForm,
 } from "./useBonsaiForm";
 
 /**
@@ -179,7 +179,9 @@ export function BonsaiForm({
             }}
             onBlur={() => validateField("description")}
             aria-invalid={!!errors.description}
-            aria-describedby={errors.description ? descriptionErrorId : undefined}
+            aria-describedby={
+              errors.description ? descriptionErrorId : undefined
+            }
             placeholder="盆栽の説明、来歴、特徴など"
             rows={4}
             maxLength={2000}
@@ -271,7 +273,9 @@ export function BonsaiForm({
               onBlur={() => validateField("acquiredAt")}
               max={maxDate}
               aria-invalid={!!errors.acquiredAt}
-              aria-describedby={errors.acquiredAt ? acquiredAtErrorId : undefined}
+              aria-describedby={
+                errors.acquiredAt ? acquiredAtErrorId : undefined
+              }
             />
             <FieldError id={acquiredAtErrorId} message={errors.acquiredAt} />
           </div>
@@ -302,7 +306,10 @@ export function BonsaiForm({
                 年
               </span>
             </div>
-            <FieldError id={estimatedAgeErrorId} message={errors.estimatedAge} />
+            <FieldError
+              id={estimatedAgeErrorId}
+              message={errors.estimatedAge}
+            />
           </div>
         </div>
 

@@ -1,12 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
-import type { BonsaiDetailResponse } from "@/server/routes/bonsai.schema";
 import {
   dateToISO,
-  isoToDate,
-  parseNumericInput,
   formatNumericValue,
   isFutureDate,
+  isoToDate,
+  parseNumericInput,
 } from "@/lib/utils/form-helpers";
+import type { BonsaiDetailResponse } from "@/server/routes/bonsai.schema";
 
 /**
  * Species type from Masters API
@@ -454,7 +454,15 @@ export function useBonsaiForm({
         setIsSubmitting(false);
       }
     },
-    [validateAll, initialData, isDirty, isEditMode, formData, csrfToken, onSuccess]
+    [
+      validateAll,
+      initialData,
+      isDirty,
+      isEditMode,
+      formData,
+      csrfToken,
+      onSuccess,
+    ]
   );
 
   return {

@@ -9,12 +9,12 @@ export { CareLogTimeline } from "./CareLogTimeline";
 
 // Form components
 export {
-  CareLogForm,
-  useCareLogForm,
   CARE_TYPES,
+  CareLogForm,
+  type CareLogFormData,
   type CareLogFormProps,
   type CareType,
-  type CareLogFormData,
   type UseCareLogFormOptions,
   type UseCareLogFormReturn,
+  useCareLogForm,
 } from "./form";

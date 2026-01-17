@@ -1,0 +1,119 @@
+---
+/**
+ * Care Log Create Page
+ *
+ * Form for creating a new care log entry.
+ * Requires authentication and bonsai ownership.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { CareLogForm } from "@/components/bonsai/care-logs/form";
+import { getAuthData } from "@/lib/auth/server";
+import type { BonsaiDetailResponse } from "@/server/routes/bonsai.schema";
+
+// Get route params
+const { bonsaiId } = Astro.params;
+
+if (!bonsaiId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Auth check - redirect to login if not authenticated
+const { user, csrfToken } = await getAuthData(Astro);
+
+if (!user) {
+  return Astro.redirect(`/login?redirect=/bonsai/${bonsaiId}/care-logs/new`);
+}
+
+// Fetch bonsai data to verify ownership
+let bonsai: BonsaiDetailResponse | null = null;
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const bonsaiRes = await fetch(`${Astro.url.origin}/api/bonsai/${bonsaiId}`, {
+    headers: { Cookie: cookieHeader },
+  });
+
+  // Handle bonsai not found
+  if (bonsaiRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!bonsaiRes.ok) {
+    fetchError = "盆栽データの取得に失敗しました";
+  } else {
+    bonsai = await bonsaiRes.json();
+  }
+
+  // Check ownership - redirect if not owner
+  if (bonsai && bonsai.userId !== user.id) {
+    return Astro.redirect(`/bonsai/${bonsaiId}`);
+  }
+} catch (e) {
+  console.error("Error fetching bonsai:", e);
+  fetchError = "データの取得に失敗しました";
+}
+---
+
+<AppLayout
+  title={bonsai ? `お手入れ記録を追加 - ${bonsai.name} | Bonsai-Cho` : "お手入れ記録を追加 | Bonsai-Cho"}
+  description="盆栽のお手入れ記録を追加します"
+>
+  <div class="container-app py-8">
+    <!-- Back Link -->
+    <nav class="mb-6">
+      <a
+        href={`/bonsai/${bonsaiId}/care-logs`}
+        class="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        お手入れ記録に戻る
+      </a>
+    </nav>
+
+    <!-- Page Header -->
+    <header class="mb-8">
+      <h1 class="font-serif text-2xl font-bold text-foreground md:text-3xl">
+        お手入れ記録を追加
+      </h1>
+      {bonsai && (
+        <p class="mt-1 text-muted-foreground">
+          {bonsai.name}
+        </p>
+      )}
+    </header>
+
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-4 text-center text-destructive mb-8">
+        <p>{fetchError}</p>
+        <a
+          href={`/bonsai/${bonsaiId}/care-logs`}
+          class="mt-2 inline-block text-sm underline hover:no-underline"
+        >
+          お手入れ記録に戻る
+        </a>
+      </div>
+    )}
+
+    <!-- Form -->
+    {bonsai && (
+      <div class="max-w-md">
+        <CareLogForm
+          client:load
+          bonsaiId={bonsaiId}
+          csrfToken={csrfToken || ""}
+          onSuccess={() => {
+            window.location.href = `/bonsai/${bonsaiId}/care-logs`;
+          }}
+          onCancel={() => {
+            window.location.href = `/bonsai/${bonsaiId}/care-logs`;
+          }}
+        />
+      </div>
+    )}
+  </div>
+</AppLayout>

@@ -29,9 +29,14 @@ export function useFollowList({
   const [hasMore, setHasMore] = useState(true);
   // Use ref to avoid stale closure issues with cursor in useCallback dependencies
   const cursorRef = useRef<string | null>(null);
+  // Use ref to track request ID and prevent stale request responses from overwriting current state
+  const requestIdRef = useRef(0);
 
   const fetchUsers = useCallback(
     async (loadMore = false) => {
+      // Increment request ID to track this specific request
+      const requestId = ++requestIdRef.current;
+
       if (loadMore) {
         setIsLoadingMore(true);
       } else {
@@ -59,6 +64,9 @@ export function useFollowList({
 
         const data = await response.json();
 
+        // Ignore stale responses from outdated requests
+        if (requestId !== requestIdRef.current) return;
+
         // Map API response to UserCardProps
         const newUsers: UserCardProps[] = data.data.map(
           (user: FollowListUser) => ({
@@ -81,23 +89,28 @@ export function useFollowList({
         setHasMore(data.hasMore);
         cursorRef.current = data.nextCursor;
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Unknown error"));
+        // Only update error state if this is still the current request
+        if (requestId === requestIdRef.current) {
+          setError(err instanceof Error ? err : new Error("Unknown error"));
+        }
       } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+        // Only update loading state if this is still the current request
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
       }
     },
     [userId, type, limit, csrfToken]
   );
 
   // Auto-initialize via useEffect (proper React pattern)
-  // Re-fetch when userId or type changes
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally depend on userId/type to refetch on change
+  // Re-fetch when fetchUsers changes (which depends on userId, type, limit, csrfToken)
   useEffect(() => {
-    // Reset cursor when userId/type changes to prevent stale pagination
+    // Reset cursor and request ID when dependencies change to prevent stale pagination
     cursorRef.current = null;
     fetchUsers(false);
-  }, [userId, type]);
+  }, [fetchUsers]);
 
   // Load more
   const loadMore = useCallback(async () => {

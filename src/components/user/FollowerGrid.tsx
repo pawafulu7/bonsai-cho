@@ -94,12 +94,12 @@ export function FollowerGrid({
   // Intersection Observer for infinite scroll
   useEffect(() => {
     const element = loadMoreRef.current;
-    if (!element || !hasMore || isLoading) return;
+    if (!element || !hasMore || isLoading || error) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
-        if (entry.isIntersecting && !isLoading) {
+        if (entry.isIntersecting && !isLoading && !error) {
           loadMore();
         }
       },
@@ -114,7 +114,7 @@ export function FollowerGrid({
     return () => {
       observer.disconnect();
     };
-  }, [hasMore, isLoading, loadMore]);
+  }, [hasMore, isLoading, loadMore, error]);
 
   const typeLabel = type === "followers" ? "フォロワー" : "フォロー中";
 
@@ -201,12 +201,12 @@ export function FollowerGrid({
       )}
 
       {/* Load More Trigger (for Intersection Observer) */}
-      {hasMore && !isLoading && (
+      {hasMore && !isLoading && !error && (
         <div ref={loadMoreRef} className="h-4" aria-hidden="true" />
       )}
 
       {/* Manual Load More Button (a11y fallback) */}
-      {hasMore && (
+      {hasMore && !error && (
         <div className="flex justify-center">
           <Button
             variant="outline"

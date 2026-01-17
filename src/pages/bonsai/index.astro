@@ -1,0 +1,79 @@
+---
+/**
+ * Bonsai List Page
+ *
+ * Displays a grid of bonsai cards with infinite scroll.
+ * SSR fetches initial data for SEO and fast first paint.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { BonsaiCardGrid } from "@/components/bonsai/list/BonsaiCardGrid";
+import { BonsaiListSkeleton } from "@/components/bonsai/list/BonsaiListSkeleton";
+import { getAuthData } from "@/lib/auth/server";
+
+// Get auth data
+const { user, csrfToken } = await getAuthData(Astro);
+
+// SSR: Fetch initial bonsai list
+let initialData = { data: [], nextCursor: null, hasMore: false };
+let fetchError: string | null = null;
+
+try {
+  const apiUrl = new URL("/api/bonsai", Astro.url.origin);
+  apiUrl.searchParams.set("limit", "20");
+
+  const response = await fetch(apiUrl.toString(), {
+    headers: {
+      Cookie: Astro.request.headers.get("cookie") || "",
+    },
+  });
+
+  if (response.ok) {
+    initialData = await response.json();
+  } else {
+    fetchError = "盆栽データの取得に失敗しました";
+  }
+} catch (e) {
+  console.error("Error fetching bonsai list:", e);
+  fetchError = "盆栽データの取得に失敗しました";
+}
+---
+
+<AppLayout
+  title="盆栽コレクション | Bonsai-Cho"
+  description="盆栽愛好家のコレクションを探索。美しい盆栽の写真とお手入れ記録を閲覧できます。"
+>
+  <section class="container-app py-8">
+    <!-- Page Header -->
+    <header class="mb-8">
+      <h1 class="font-serif text-3xl font-bold text-foreground md:text-4xl">
+        盆栽コレクション
+      </h1>
+      <p class="mt-2 text-muted-foreground">
+        みんなの盆栽を探索してみましょう
+      </p>
+    </header>
+
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-4 text-center text-destructive">
+        <p>{fetchError}</p>
+        <button
+          onclick="window.location.reload()"
+          class="mt-2 text-sm underline hover:no-underline"
+        >
+          再読み込み
+        </button>
+      </div>
+    )}
+
+    <!-- Bonsai Grid -->
+    {!fetchError && (
+      <BonsaiCardGrid
+        client:load
+        initialData={initialData.data}
+        initialCursor={initialData.nextCursor}
+        initialHasMore={initialData.hasMore}
+      />
+    )}
+  </section>
+</AppLayout>

@@ -1,0 +1,132 @@
+---
+/**
+ * Care Logs Page (Owner Only)
+ *
+ * Displays care log timeline for bonsai owners.
+ * Redirects non-owners to the detail page.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { CareLogTimeline } from "@/components/bonsai/care-logs/CareLogTimeline";
+import { Button } from "@/components/ui/button";
+import { getAuthData } from "@/lib/auth/server";
+import type { BonsaiDetailResponse } from "@/server/routes/bonsai.schema";
+
+// Get route params
+const { bonsaiId } = Astro.params;
+
+if (!bonsaiId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Get auth data
+const { user, csrfToken } = await getAuthData(Astro);
+
+// Require authentication
+if (!user) {
+  return Astro.redirect(`/login?redirect=/bonsai/${bonsaiId}/care-logs`);
+}
+
+// SSR: Fetch bonsai to verify ownership
+let bonsai: BonsaiDetailResponse | null = null;
+let careLogs = { data: [], hasMore: false, nextCursor: null as string | null };
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const bonsaiRes = await fetch(`${Astro.url.origin}/api/bonsai/${bonsaiId}`, {
+    headers: { Cookie: cookieHeader },
+  });
+
+  if (bonsaiRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!bonsaiRes.ok) {
+    fetchError = "盆栽データの取得に失敗しました";
+  } else {
+    bonsai = (await bonsaiRes.json()) as BonsaiDetailResponse;
+
+    // Verify ownership (SSR security check)
+    if (bonsai && bonsai.userId !== user.id) {
+      return Astro.redirect(`/bonsai/${bonsaiId}`);
+    }
+
+    // Fetch care logs only if owner
+    const logsRes = await fetch(
+      `${Astro.url.origin}/api/bonsai/${bonsaiId}/care-logs?limit=10`,
+      {
+        headers: { Cookie: cookieHeader },
+      }
+    );
+
+    if (logsRes.ok) {
+      careLogs = await logsRes.json();
+    }
+  }
+} catch (e) {
+  console.error("Error fetching care logs:", e);
+  fetchError = "お手入れ記録の取得に失敗しました";
+}
+---
+
+<AppLayout
+  title={bonsai ? `お手入れ記録 - ${bonsai.name} | Bonsai-Cho` : "お手入れ記録 | Bonsai-Cho"}
+  description="盆栽のお手入れ履歴を確認"
+>
+  <div class="container-app py-8">
+    <!-- Back Link -->
+    <nav class="mb-6">
+      <a
+        href={`/bonsai/${bonsaiId}`}
+        class="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"/>
+        </svg>
+        {bonsai?.name || "詳細"}に戻る
+      </a>
+    </nav>
+
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-8 text-center text-destructive">
+        <p class="text-lg">{fetchError}</p>
+        <a href={`/bonsai/${bonsaiId}`} class="mt-4 inline-block text-sm underline hover:no-underline">
+          詳細ページに戻る
+        </a>
+      </div>
+    )}
+
+    {bonsai && (
+      <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <h1 class="font-serif text-2xl font-bold text-foreground md:text-3xl">
+              お手入れ記録
+            </h1>
+            <p class="mt-1 text-muted-foreground">
+              {bonsai.name}
+            </p>
+          </div>
+
+          <Button asChild>
+            <a href={`/bonsai/${bonsaiId}/care-logs/new`}>
+              記録を追加
+            </a>
+          </Button>
+        </header>
+
+        <!-- Timeline -->
+        <CareLogTimeline
+          client:load
+          bonsaiId={bonsaiId}
+          initialLogs={careLogs.data}
+          initialHasMore={careLogs.hasMore}
+          initialNextCursor={careLogs.nextCursor}
+        />
+      </div>
+    )}
+  </div>
+</AppLayout>

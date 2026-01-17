@@ -18,19 +18,19 @@ import {
     <div class="container-app">
       <div class="mx-auto max-w-3xl text-center">
         <h1 class="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
-          Share Your
-          <span class="text-primary">Bonsai</span>
-          Journey
+          あなたの
+          <span class="text-primary">盆栽</span>
+          を記録しよう
         </h1>
         <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
-          Record the growth of your bonsai, share photos with fellow enthusiasts, and connect with a community that appreciates the art of bonsai.
+          盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
         <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button size="lg" className="h-12 px-8 text-base">
-            Get Started
+          <Button asChild size="lg" className="h-12 px-8 text-base">
+            <a href="/login">今すぐ始める</a>
           </Button>
-          <Button variant="outline" size="lg" className="h-12 px-8 text-base">
-            Explore Bonsai
+          <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base">
+            <a href="/bonsai">盆栽を見る</a>
           </Button>
         </div>
       </div>
@@ -47,10 +47,10 @@ import {
     <div class="container-app">
       <div class="mx-auto max-w-2xl text-center">
         <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Everything You Need for Your Bonsai
+          盆栽管理に必要なすべてを
         </h2>
         <p class="mt-4 text-lg text-muted-foreground">
-          Track, share, and grow with our comprehensive bonsai management platform.
+          記録・共有・成長。盆栽管理プラットフォームで、あなたの盆栽ライフをサポートします。
         </p>
       </div>
 
@@ -64,9 +64,9 @@ import {
                 <circle cx="12" cy="13" r="3"/>
               </svg>
             </div>
-            <CardTitle className="font-serif">Photo Gallery</CardTitle>
+            <CardTitle className="font-serif">フォトギャラリー</CardTitle>
             <CardDescription>
-              Upload and organize photos of your bonsai collection. Track visual changes over time.
+              盆栽コレクションの写真をアップロード・整理。時間の経過とともに変化を追跡できます。
             </CardDescription>
           </CardHeader>
         </Card>
@@ -80,9 +80,9 @@ import {
                 <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/>
               </svg>
             </div>
-            <CardTitle className="font-serif">Care Logs</CardTitle>
+            <CardTitle className="font-serif">お手入れ記録</CardTitle>
             <CardDescription>
-              Keep detailed records of watering, pruning, repotting, and other care activities.
+              水やり、剪定、植え替えなどのお手入れ記録を詳細に残せます。
             </CardDescription>
           </CardHeader>
         </Card>
@@ -98,9 +98,9 @@ import {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
             </div>
-            <CardTitle className="font-serif">Community</CardTitle>
+            <CardTitle className="font-serif">コミュニティ</CardTitle>
             <CardDescription>
-              Connect with bonsai enthusiasts worldwide. Share tips, get feedback, and learn together.
+              世界中の盆栽愛好家とつながりましょう。ヒントを共有し、フィードバックをもらい、一緒に学べます。
             </CardDescription>
           </CardHeader>
         </Card>
@@ -113,14 +113,14 @@ import {
     <div class="container-app">
       <div class="mx-auto max-w-2xl text-center">
         <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          Start Your Bonsai Journey Today
+          今日から盆栽の記録を始めよう
         </h2>
         <p class="mt-4 text-lg text-muted-foreground">
-          Join our growing community of bonsai enthusiasts and start documenting your collection.
+          盆栽愛好家のコミュニティに参加して、あなたのコレクションを記録しましょう。
         </p>
         <div class="mt-8">
-          <Button size="lg" className="h-12 px-8 text-base">
-            Create Free Account
+          <Button asChild size="lg" className="h-12 px-8 text-base">
+            <a href="/login">無料で始める</a>
           </Button>
         </div>
       </div>

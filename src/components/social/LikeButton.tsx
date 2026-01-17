@@ -28,9 +28,9 @@ export function LikeButton({
     csrfToken,
   });
 
-  // Size variants
+  // Size variants (all sizes meet WCAG 2.1 AA 44px minimum touch target)
   const sizeClasses = {
-    sm: "px-3 py-1.5 min-h-[36px] min-w-[36px] text-sm",
+    sm: "px-3 py-1.5 min-h-[44px] min-w-[44px] text-sm",
     md: "px-4 py-2 min-h-[44px] min-w-[44px]",
     lg: "px-5 py-2.5 min-h-[52px] min-w-[52px] text-lg",
   };

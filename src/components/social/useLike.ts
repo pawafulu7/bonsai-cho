@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { UseLikeOptions, UseLikeReturn } from "@/types/social";
 
 /**
@@ -16,10 +16,13 @@ export function useLike({
   const [liked, setLiked] = useState(initialLiked);
   const [count, setCount] = useState(initialCount);
   const [isPending, setIsPending] = useState(false);
+  // useRef for synchronous guard (useState is async and can miss rapid clicks)
+  const pendingRef = useRef(false);
 
   const toggle = useCallback(async () => {
-    // Prevent double-clicks while request is in flight
-    if (isPending) return;
+    // Prevent double-clicks with synchronous ref check
+    if (pendingRef.current) return;
+    pendingRef.current = true;
 
     // Store previous state for rollback
     const prevLiked = liked;
@@ -54,8 +57,9 @@ export function useLike({
       setCount(prevCount);
     } finally {
       setIsPending(false);
+      pendingRef.current = false;
     }
-  }, [bonsaiId, liked, count, csrfToken, isPending]);
+  }, [bonsaiId, liked, count, csrfToken]);
 
   return { liked, count, isPending, toggle };
 }

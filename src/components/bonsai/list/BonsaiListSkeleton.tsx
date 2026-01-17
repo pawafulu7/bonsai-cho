@@ -25,7 +25,9 @@ export function BonsaiListSkeleton({
   );
 
   return (
-    <output
+    // biome-ignore lint/a11y/useSemanticElements: <output> is for form calculations; role="status" is correct for loading state
+    <div
+      role="status"
       className={cn(
         "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6",
         className
@@ -57,6 +59,6 @@ export function BonsaiListSkeleton({
           </div>
         </div>
       ))}
-    </output>
+    </div>
   );
 }

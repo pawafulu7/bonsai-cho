@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { UseFollowOptions, UseFollowReturn } from "@/types/social";
 
 /**
@@ -16,10 +16,13 @@ export function useFollow({
   const [following, setFollowing] = useState(initialFollowing);
   const [count, setCount] = useState(initialCount);
   const [isPending, setIsPending] = useState(false);
+  // useRef for synchronous guard (useState is async and can miss rapid clicks)
+  const pendingRef = useRef(false);
 
   const toggle = useCallback(async () => {
-    // Prevent double-clicks while request is in flight
-    if (isPending) return;
+    // Prevent double-clicks with synchronous ref check
+    if (pendingRef.current) return;
+    pendingRef.current = true;
 
     // Store previous state for rollback
     const prevFollowing = following;
@@ -54,8 +57,9 @@ export function useFollow({
       setCount(prevCount);
     } finally {
       setIsPending(false);
+      pendingRef.current = false;
     }
-  }, [userId, following, count, csrfToken, isPending]);
+  }, [userId, following, count, csrfToken]);
 
   return { following, count, isPending, toggle };
 }

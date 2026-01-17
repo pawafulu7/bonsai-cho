@@ -36,7 +36,8 @@ export function useComments({
   // Add a new comment
   const addComment = useCallback(
     async (content: string) => {
-      if (isSubmitting) return;
+      // Block while submitting or during delete operation (prevents rollback data loss)
+      if (isSubmitting || isPending) return;
       setIsSubmitting(true);
 
       try {
@@ -59,7 +60,7 @@ export function useComments({
         setIsSubmitting(false);
       }
     },
-    [bonsaiId, getHeaders, isSubmitting]
+    [bonsaiId, getHeaders, isSubmitting, isPending]
   );
 
   // Delete a comment (optimistic update)

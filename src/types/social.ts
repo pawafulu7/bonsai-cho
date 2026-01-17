@@ -56,49 +56,12 @@ export interface BonsaiListResponseWithSocial {
 
 /**
  * Bonsai detail with isLiked status (for logged-in users)
+ * Extends BonsaiDetailResponse with additional isLiked property
  */
-export interface BonsaiDetailWithLikeStatus {
-  id: string;
-  userId: string;
-  name: string;
-  description: string | null;
-  speciesId: string | null;
-  species: {
-    id: string;
-    nameJa: string;
-    nameEn: string | null;
-    nameScientific: string | null;
-  } | null;
-  styleId: string | null;
-  style: {
-    id: string;
-    nameJa: string;
-    nameEn: string | null;
-  } | null;
-  acquiredAt: string | null;
-  estimatedAge: number | null;
-  height: number | null;
-  width: number | null;
-  potDetails: string | null;
-  isPublic: boolean;
-  likeCount: number;
-  commentCount: number;
-  isLiked: boolean;
-  images: Array<{
-    id: string;
-    imageUrl: string;
-    thumbnailUrl: string | null;
-    caption: string | null;
-    isPrimary: boolean;
-    sortOrder: number;
-  }>;
-  tags: Array<{
-    id: string;
-    name: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
-}
+export type BonsaiDetailWithLikeStatus =
+  import("@/server/routes/bonsai.schema").BonsaiDetailResponse & {
+    isLiked: boolean;
+  };
 
 // ============================================================================
 // Component Props Types

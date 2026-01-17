@@ -6,9 +6,20 @@
 
 import type { CareType } from "@/server/routes/bonsai.schema";
 
+/**
+ * Valid icon names for care type icons (from lucide-react)
+ */
+export type CareIconName =
+  | "Droplet"
+  | "Leaf"
+  | "Scissors"
+  | "Flower2"
+  | "GitBranch"
+  | "CircleDot";
+
 export interface CareTypeConfig {
   label: string;
-  icon: string;
+  icon: CareIconName;
   color: string;
 }
 

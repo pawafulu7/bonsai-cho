@@ -4,6 +4,15 @@ import type {
   UseBonsaiListReturn,
 } from "@/types/social";
 
+/**
+ * API response type for bonsai list endpoint
+ */
+interface BonsaiListApiResponse {
+  data: BonsaiListItemWithSocial[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 interface UseBonsaiListOptions {
   initialData: BonsaiListItemWithSocial[];
   initialCursor: string | null;
@@ -44,7 +53,7 @@ export function useBonsaiList({
         throw new Error("Failed to load bonsai list");
       }
 
-      const data = await response.json();
+      const data: BonsaiListApiResponse = await response.json();
       setItems((prev) => [...prev, ...data.data]);
       setCursor(data.nextCursor);
       setHasMore(data.hasMore);

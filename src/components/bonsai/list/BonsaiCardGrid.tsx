@@ -19,7 +19,7 @@ export function BonsaiCardGrid({
   initialData,
   initialCursor,
   initialHasMore,
-  emptyCta = { label: "盆栽を登録する", href: "/bonsai/quick-add" },
+  emptyCta = { label: "盆栽を登録する", href: "/bonsai/new" },
 }: BonsaiCardGridProps) {
   const { items, hasMore, isLoading, loadMore } = useBonsaiList({
     initialData,

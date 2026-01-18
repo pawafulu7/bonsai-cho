@@ -20,6 +20,7 @@ const currentPath = Astro.url.pathname;
 const isBonsaiPage =
   currentPath === "/bonsai" || currentPath.startsWith("/bonsai/");
 const isLandingPage = currentPath === "/";
+const isBonsaiNewPage = currentPath === "/bonsai/new";
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -57,9 +58,9 @@ const isLandingPage = currentPath === "/";
         >
           盆栽一覧
         </a>
-        {user && !isLandingPage && (
+        {user && !isLandingPage && !isBonsaiNewPage && (
           <a
-            href="/bonsai/quick-add"
+            href="/bonsai/new"
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <svg
@@ -73,10 +74,10 @@ const isLandingPage = currentPath === "/";
               class="h-4 w-4"
               aria-hidden="true"
             >
-              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-              <circle cx="12" cy="13" r="3" />
+              <path d="M5 12h14" />
+              <path d="M12 5v14" />
             </svg>
-            <span>クイック登録</span>
+            <span>盆栽を登録</span>
           </a>
         )}
       </nav>
@@ -137,9 +138,9 @@ const isLandingPage = currentPath === "/";
       >
         盆栽一覧
       </a>
-      {user && !isLandingPage && (
+      {user && !isLandingPage && !isBonsaiNewPage && (
         <a
-          href="/bonsai/quick-add"
+          href="/bonsai/new"
           class="flex items-center gap-2 py-4 text-base font-medium text-primary transition-colors hover:text-primary/80"
         >
           <svg
@@ -153,10 +154,10 @@ const isLandingPage = currentPath === "/";
             class="h-5 w-5"
             aria-hidden="true"
           >
-            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-            <circle cx="12" cy="13" r="3" />
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
           </svg>
-          クイック登録
+          盆栽を登録
         </a>
       )}
       {!user && (

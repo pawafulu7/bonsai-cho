@@ -27,6 +27,10 @@ export interface BonsaiFormProps
   extends Omit<UseBonsaiFormOptions, "onSuccess"> {
   /** Class name for the form container */
   className?: string;
+  /** List of available species */
+  speciesList: Species[];
+  /** List of available styles */
+  styleList: Style[];
   /** Callback on successful submit - receives bonsai ID */
   onSuccess?: (bonsaiId: string) => void;
   /** Callback when cancel button is clicked */
@@ -89,8 +93,6 @@ export function BonsaiForm({
   } = useBonsaiForm({
     initialData,
     csrfToken,
-    speciesList,
-    styleList,
     onSuccess,
   });
 
@@ -271,6 +273,9 @@ export function BonsaiForm({
                 clearError("acquiredAt");
               }}
               onBlur={() => validateField("acquiredAt")}
+              onFocus={(e) => {
+                e.currentTarget.max = getCurrentDate();
+              }}
               max={maxDate}
               aria-invalid={!!errors.acquiredAt}
               aria-describedby={

@@ -22,7 +22,8 @@ if (!bonsaiId) {
 const { user, csrfToken } = await getAuthData(Astro);
 
 if (!user) {
-  return Astro.redirect(`/login?redirect=/bonsai/${bonsaiId}/edit`);
+  const redirectTo = encodeURIComponent(`/bonsai/${bonsaiId}/edit`);
+  return Astro.redirect(`/login?redirect=${redirectTo}`);
 }
 
 // Fetch bonsai data and master data in parallel
@@ -65,11 +66,15 @@ try {
   if (speciesRes.ok) {
     const speciesData = await speciesRes.json();
     speciesList = speciesData.data || [];
+  } else if (!fetchError) {
+    fetchError = "樹種データの取得に失敗しました";
   }
 
   if (stylesRes.ok) {
     const stylesData = await stylesRes.json();
     styleList = stylesData.data || [];
+  } else if (!fetchError) {
+    fetchError = "樹形データの取得に失敗しました";
   }
 } catch (e) {
   console.error("Error fetching data:", e);

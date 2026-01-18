@@ -58,10 +58,6 @@ export interface UseBonsaiFormOptions {
   initialData?: BonsaiDetailResponse;
   /** CSRF token for API requests */
   csrfToken: string;
-  /** List of available species */
-  speciesList: Species[];
-  /** List of available styles */
-  styleList: Style[];
   /** Callback on successful submit */
   onSuccess?: (bonsaiId: string) => void;
 }

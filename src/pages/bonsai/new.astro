@@ -37,11 +37,17 @@ try {
   if (speciesRes.ok) {
     const speciesData = await speciesRes.json();
     speciesList = speciesData.data || [];
+  } else {
+    fetchError = "樹種データの取得に失敗しました";
   }
 
   if (stylesRes.ok) {
     const stylesData = await stylesRes.json();
     styleList = stylesData.data || [];
+  } else {
+    fetchError = fetchError
+      ? `${fetchError}、樹形データの取得にも失敗しました`
+      : "樹形データの取得に失敗しました";
   }
 } catch (e) {
   console.error("Error fetching master data:", e);

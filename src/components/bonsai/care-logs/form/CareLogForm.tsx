@@ -157,6 +157,9 @@ export function CareLogForm({
             clearError("performedAt");
           }}
           onBlur={() => validateField("performedAt")}
+          onFocus={(e) => {
+            e.currentTarget.max = getCurrentDatetimeLocal();
+          }}
           max={maxDatetime}
           aria-required="true"
           aria-invalid={!!errors.performedAt}

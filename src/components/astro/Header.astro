@@ -51,7 +51,7 @@ const isLandingPage = currentPath === "/";
           href="/bonsai"
           class:list={[
             "inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-muted hover:text-foreground",
-            isBonsaiPage ? "bg-muted text-foreground" : "text-muted-foreground"
+            isBonsaiPage ? "bg-muted text-foreground" : "text-[color:var(--color-muted-foreground-accessible)]"
           ]}
           aria-current={isBonsaiPage ? 'page' : undefined}
         >
@@ -131,7 +131,7 @@ const isLandingPage = currentPath === "/";
         href="/bonsai"
         class:list={[
           "block py-4 text-base font-medium transition-colors hover:text-foreground",
-          isBonsaiPage ? "text-foreground" : "text-muted-foreground"
+          isBonsaiPage ? "text-foreground" : "text-[color:var(--color-muted-foreground-accessible)]"
         ]}
         aria-current={isBonsaiPage ? 'page' : undefined}
       >
@@ -162,7 +162,7 @@ const isLandingPage = currentPath === "/";
       {!user && (
         <a
           href="/login"
-          class="block py-4 text-base font-medium text-muted-foreground transition-colors hover:text-foreground"
+          class="block py-4 text-base font-medium text-[color:var(--color-muted-foreground-accessible)] transition-colors hover:text-foreground"
         >
           ログイン
         </a>

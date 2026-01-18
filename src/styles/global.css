@@ -34,6 +34,8 @@
   /* Muted */
   --color-muted: #F0EDE8;
   --color-muted-foreground: #6B6B6B;
+  /* Muted foreground with WCAG AA contrast (5.5:1 against #FAF8F5) */
+  --color-muted-foreground-accessible: #555555;
 
   /* Border */
   --color-border: #E5E2DD;

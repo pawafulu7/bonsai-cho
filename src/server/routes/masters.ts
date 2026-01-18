@@ -34,7 +34,7 @@ masters.use("*", async (c, next) => {
 });
 
 // ============================================================================
-// GET /api/species - List all species
+// GET /api/masters/species - List all species
 // ============================================================================
 
 masters.get("/species", async (c) => {
@@ -65,7 +65,7 @@ masters.get("/species", async (c) => {
 });
 
 // ============================================================================
-// GET /api/styles - List all styles
+// GET /api/masters/styles - List all styles
 // ============================================================================
 
 masters.get("/styles", async (c) => {
@@ -95,7 +95,7 @@ masters.get("/styles", async (c) => {
 });
 
 // ============================================================================
-// GET /api/tags - List popular tags
+// GET /api/masters/tags - List popular tags
 // ============================================================================
 
 masters.get("/tags", async (c) => {

@@ -242,7 +242,7 @@ export function ImageDropzone({
           disabled && "cursor-not-allowed opacity-50",
           !isDragging &&
             !displayError &&
-            "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
+            "border-muted-foreground/25 hover:border-primary hover:bg-primary/10 transition-colors duration-150"
         )}
       >
         {hasImage ? (

@@ -492,9 +492,22 @@ export function useBonsaiForm({
         ) {
           const result = await response.json();
           bonsaiId = isEditMode ? initialData!.id : result.id;
-        } else {
+        } else if (isEditMode && initialData) {
           // For PATCH with no content, use the existing ID
-          bonsaiId = initialData!.id;
+          bonsaiId = initialData.id;
+        } else {
+          // Create mode without JSON response - try Location header as fallback
+          const locationHeader = response.headers.get("Location");
+          if (locationHeader) {
+            const match = locationHeader.match(/\/bonsai\/([^/]+)$/);
+            if (match) {
+              bonsaiId = match[1];
+            } else {
+              throw new Error("サーバーからの応答形式が不正です");
+            }
+          } else {
+            throw new Error("サーバーからの応答形式が不正です");
+          }
         }
 
         if (onSuccess) {

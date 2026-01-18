@@ -197,15 +197,18 @@ export function BonsaiForm({
           <div className="space-y-2">
             <Label htmlFor={speciesId}>樹種</Label>
             <Select
-              value={formData.speciesId}
-              onValueChange={(value) => setField("speciesId", value)}
+              value={formData.speciesId || "__none__"}
+              onValueChange={(value) =>
+                setField("speciesId", value === "__none__" ? "" : value)
+              }
             >
               <SelectTrigger id={speciesId}>
                 <SelectValue placeholder="樹種を選択" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">選択なし</SelectItem>
                 {speciesList.length === 0 ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="__empty__" disabled>
                     選択肢がありません
                   </SelectItem>
                 ) : (
@@ -228,15 +231,18 @@ export function BonsaiForm({
           <div className="space-y-2">
             <Label htmlFor={styleId}>樹形</Label>
             <Select
-              value={formData.styleId}
-              onValueChange={(value) => setField("styleId", value)}
+              value={formData.styleId || "__none__"}
+              onValueChange={(value) =>
+                setField("styleId", value === "__none__" ? "" : value)
+              }
             >
               <SelectTrigger id={styleId}>
                 <SelectValue placeholder="樹形を選択" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="__none__">選択なし</SelectItem>
                 {styleList.length === 0 ? (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="__empty__" disabled>
                     選択肢がありません
                   </SelectItem>
                 ) : (

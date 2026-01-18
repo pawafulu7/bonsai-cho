@@ -111,7 +111,7 @@ const api = app.basePath("/api");
 api.route("/auth", authRoutes);
 
 // Master data routes (species, styles, tags)
-api.route("/", mastersRoutes);
+api.route("/masters", mastersRoutes);
 
 // Bonsai CRUD routes
 api.route("/bonsai", bonsaiRoutes);

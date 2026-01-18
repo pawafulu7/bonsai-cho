@@ -69,7 +69,9 @@ function checkTestDataSeedingAllowed(): boolean {
     console.error(
       "ERROR: Test data seeding only allowed on development database"
     );
-    console.error("Detected DB URL:", `${url.substring(0, 50)}...`);
+    // URLから認証情報をマスク（libsql://user:pass@host 形式を考慮）
+    const safeUrl = url.replace(/\/\/[^@]*@/, "//***@");
+    console.error("Detected DB URL:", `${safeUrl.substring(0, 50)}...`);
     console.error('Hint: DB URL must contain "localhost", "file:", or "-dev"');
     process.exit(1);
   }
@@ -762,13 +764,13 @@ async function seedTestBonsai(
   console.log(`  Upserted ${testBonsaiData.length} test bonsai`);
 }
 
-async function seedTestCareLogs(
+async function seedTestCareLogsWithData(
   tx: Parameters<
     Parameters<Awaited<ReturnType<typeof createDb>>["db"]["transaction"]>[0]
-  >[0]
+  >[0],
+  careLogsData: ReturnType<typeof generateTestCareLogsData>
 ) {
   console.log("Seeding test care logs...");
-  const careLogsData = generateTestCareLogsData();
   await tx
     .insert(careLogs)
     .values(careLogsData)
@@ -814,6 +816,9 @@ async function seed() {
 
   // Check if test data seeding is allowed
   const shouldSeedTestData = checkTestDataSeedingAllowed();
+
+  // Generate care logs data once (avoid redundant calls)
+  const careLogsData = shouldSeedTestData ? generateTestCareLogsData() : [];
 
   console.log("Seeding database...");
   if (shouldSeedTestData) {
@@ -863,7 +868,7 @@ async function seed() {
       if (shouldSeedTestData) {
         await seedTestUsers(tx);
         await seedTestBonsai(tx);
-        await seedTestCareLogs(tx);
+        await seedTestCareLogsWithData(tx, careLogsData);
         await seedTestBonsaiImages(tx);
       }
     });
@@ -873,7 +878,7 @@ async function seed() {
       console.log("Test data summary:");
       console.log(`  - ${testUsersData.length} users`);
       console.log(`  - ${testBonsaiData.length} bonsai`);
-      console.log(`  - ${generateTestCareLogsData().length} care logs`);
+      console.log(`  - ${careLogsData.length} care logs`);
       console.log(`  - ${testBonsaiImagesData.length} bonsai images`);
     }
   } catch (error) {

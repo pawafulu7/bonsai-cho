@@ -15,7 +15,6 @@ const { user } = await getAuthData(Astro);
 const buttonBaseStyles =
   "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 text-base`;
-const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-12 px-8 text-base`;
 ---
 
 <AppLayout
@@ -34,10 +33,7 @@ const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-backgrou
         <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
-        <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <a href="/bonsai" class={buttonOutlineStyles}>
-            盆栽を見る
-          </a>
+        <div class="mt-10">
           {user ? (
             <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
               盆栽を登録する
@@ -123,28 +119,4 @@ const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-backgrou
     </div>
   </section>
 
-  <!-- CTA Section -->
-  <section class="py-20">
-    <div class="container-app">
-      <div class="mx-auto max-w-2xl text-center">
-        <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          今日から盆栽の記録を始めよう
-        </h2>
-        <p class="mt-4 text-lg text-muted-foreground">
-          盆栽愛好家のコミュニティに参加して、あなたのコレクションを記録しましょう。
-        </p>
-        <div class="mt-8">
-          {user ? (
-            <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
-              新しい盆栽を追加
-            </a>
-          ) : (
-            <a href="/login?returnTo=/bonsai/quick-add" class={buttonPrimaryStyles}>
-              無料で始める
-            </a>
-          )}
-        </div>
-      </div>
-    </div>
-  </section>
 </AppLayout>

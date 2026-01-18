@@ -593,11 +593,11 @@ function generateTestCareLogsData() {
 // =============================================================================
 
 /**
- * Generate bonsai images with picsum.photos placeholder URLs.
- * Each bonsai gets 1-3 images.
+ * Bonsai images with picsum.photos placeholder URLs.
+ * Each bonsai gets exactly 1 image to match the actual user registration flow.
  */
 const testBonsaiImagesData = [
-  // 黒龍（黒松）- 3枚
+  // 黒龍（黒松）
   {
     id: "image_demo_kuromatsu_01_001",
     bonsaiId: "bonsai_demo_kuromatsu_01",
@@ -607,26 +607,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_kuromatsu_01_002",
-    bonsaiId: "bonsai_demo_kuromatsu_01",
-    imageUrl: "https://picsum.photos/seed/kuromatsu01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/kuromatsu01b/200/150",
-    caption: "幹の立ち上がり部分",
-    isPrimary: false,
-    sortOrder: 1,
-  },
-  {
-    id: "image_demo_kuromatsu_01_003",
-    bonsaiId: "bonsai_demo_kuromatsu_01",
-    imageUrl: "https://picsum.photos/seed/kuromatsu01c/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/kuromatsu01c/200/150",
-    caption: "背面からの姿",
-    isPrimary: false,
-    sortOrder: 2,
-  },
 
-  // 青雲（真柏）- 2枚
+  // 青雲（真柏）
   {
     id: "image_demo_shimpaku_01_001",
     bonsaiId: "bonsai_demo_shimpaku_01",
@@ -636,17 +618,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_shimpaku_01_002",
-    bonsaiId: "bonsai_demo_shimpaku_01",
-    imageUrl: "https://picsum.photos/seed/shimpaku01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/shimpaku01b/200/150",
-    caption: "ジンとシャリの詳細",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 紅炎（楓）- 2枚
+  // 紅炎（楓）
   {
     id: "image_demo_kaede_01_001",
     bonsaiId: "bonsai_demo_kaede_01",
@@ -656,17 +629,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_kaede_01_002",
-    bonsaiId: "bonsai_demo_kaede_01",
-    imageUrl: "https://picsum.photos/seed/kaede01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/kaede01b/200/150",
-    caption: "枝ぶりの詳細",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 白峰（五葉松）- 2枚
+  // 白峰（五葉松）
   {
     id: "image_demo_goyo_01_001",
     bonsaiId: "bonsai_demo_goyo_01",
@@ -676,17 +640,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_goyo_01_002",
-    bonsaiId: "bonsai_demo_goyo_01",
-    imageUrl: "https://picsum.photos/seed/goyo01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/goyo01b/200/150",
-    caption: "幹の線の美しさ",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 春霞（桜）- 2枚
+  // 春霞（桜）
   {
     id: "image_demo_sakura_01_001",
     bonsaiId: "bonsai_demo_sakura_01",
@@ -696,17 +651,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_sakura_01_002",
-    bonsaiId: "bonsai_demo_sakura_01",
-    imageUrl: "https://picsum.photos/seed/sakura01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/sakura01b/200/150",
-    caption: "新緑の姿",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 秋錦（楓）- 2枚
+  // 秋錦（楓）
   {
     id: "image_demo_kaede_02_001",
     bonsaiId: "bonsai_demo_kaede_02",
@@ -716,17 +662,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_kaede_02_002",
-    bonsaiId: "bonsai_demo_kaede_02",
-    imageUrl: "https://picsum.photos/seed/kaede02b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/kaede02b/200/150",
-    caption: "秋の紅葉",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 紫雲（サツキ）- 2枚
+  // 紫雲（サツキ）
   {
     id: "image_demo_azalea_01_001",
     bonsaiId: "bonsai_demo_azalea_01",
@@ -736,17 +673,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_azalea_01_002",
-    bonsaiId: "bonsai_demo_azalea_01",
-    imageUrl: "https://picsum.photos/seed/azalea01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/azalea01b/200/150",
-    caption: "紫色の花のアップ",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 若葉（欅）- 1枚
+  // 若葉（欅）
   {
     id: "image_demo_keyaki_01_001",
     bonsaiId: "bonsai_demo_keyaki_01",
@@ -757,7 +685,7 @@ const testBonsaiImagesData = [
     sortOrder: 0,
   },
 
-  // 白梅（梅）- 2枚
+  // 白梅（梅）
   {
     id: "image_demo_ume_01_001",
     bonsaiId: "bonsai_demo_ume_01",
@@ -767,17 +695,8 @@ const testBonsaiImagesData = [
     isPrimary: true,
     sortOrder: 0,
   },
-  {
-    id: "image_demo_ume_01_002",
-    bonsaiId: "bonsai_demo_ume_01",
-    imageUrl: "https://picsum.photos/seed/ume01b/800/600",
-    thumbnailUrl: "https://picsum.photos/seed/ume01b/200/150",
-    caption: "幹模様の詳細",
-    isPrimary: false,
-    sortOrder: 1,
-  },
 
-  // 初陣（黒松）- 1枚
+  // 初陣（黒松）
   {
     id: "image_demo_kuromatsu_02_001",
     bonsaiId: "bonsai_demo_kuromatsu_02",

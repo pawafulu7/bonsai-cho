@@ -254,13 +254,17 @@ export function useUnifiedBonsaiForm({
       newErrors.width = "幅は数値で入力してください";
     }
 
-    // Date validation (if provided)
+    // Date validation (if provided) - use local timezone to avoid UTC mismatch
     if (formState.acquiredAt) {
-      const date = new Date(formState.acquiredAt);
+      const date = new Date(`${formState.acquiredAt}T00:00:00`);
       if (Number.isNaN(date.getTime())) {
         newErrors.acquiredAt = "有効な日付を入力してください";
-      } else if (date > new Date()) {
-        newErrors.acquiredAt = "未来の日付は入力できません";
+      } else {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (date > today) {
+          newErrors.acquiredAt = "未来の日付は入力できません";
+        }
       }
     }
 
@@ -348,6 +352,15 @@ export function useUnifiedBonsaiForm({
 
   // Main submit handler
   const handleSubmit = useCallback(async (): Promise<void> => {
+    // Guard against multiple submissions
+    if (
+      progress === "resizing" ||
+      progress === "creating" ||
+      progress === "uploading"
+    ) {
+      return;
+    }
+
     // Validate form
     if (!validate()) {
       return;
@@ -399,7 +412,7 @@ export function useUnifiedBonsaiForm({
           error instanceof Error ? error.message : "エラーが発生しました",
       });
     }
-  }, [formState, validate, createBonsai, uploadImage, onSuccess]);
+  }, [formState, progress, validate, createBonsai, uploadImage, onSuccess]);
 
   // Reset form
   const resetForm = useCallback(() => {

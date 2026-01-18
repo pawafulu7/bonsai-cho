@@ -112,6 +112,7 @@ export function MultiImageDropzone({
   const errorId = `${inputId}-error`;
   const helpId = `${inputId}-help`;
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewUrlsRef = useRef<Map<File, string>>(new Map());
   const [isDragging, setIsDragging] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [previewUrls, setPreviewUrls] = useState<Map<File, string>>(new Map());
@@ -150,13 +151,15 @@ export function MultiImageDropzone({
     });
   }, [selectedImages]);
 
-  // Cleanup all URLs on unmount
-  // biome-ignore lint/correctness/useExhaustiveDependencies: Cleanup only on unmount, uses ref pattern implicitly
+  // Keep ref in sync for unmount cleanup
   useEffect(() => {
-    // Store current previewUrls reference for cleanup
-    const urlsRef = previewUrls;
+    previewUrlsRef.current = previewUrls;
+  }, [previewUrls]);
+
+  // Cleanup all URLs on unmount
+  useEffect(() => {
     return () => {
-      for (const url of urlsRef.values()) {
+      for (const url of previewUrlsRef.current.values()) {
         URL.revokeObjectURL(url);
       }
     };

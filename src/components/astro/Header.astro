@@ -20,6 +20,7 @@ const currentPath = Astro.url.pathname;
 const isBonsaiPage =
   currentPath === "/bonsai" || currentPath.startsWith("/bonsai/");
 const isLandingPage = currentPath === "/";
+const isBonsaiNewPage = currentPath === "/bonsai/new";
 ---
 
 <header class="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -57,7 +58,7 @@ const isLandingPage = currentPath === "/";
         >
           盆栽一覧
         </a>
-        {user && !isLandingPage && (
+        {user && !isLandingPage && !isBonsaiNewPage && (
           <a
             href="/bonsai/new"
             class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -137,7 +138,7 @@ const isLandingPage = currentPath === "/";
       >
         盆栽一覧
       </a>
-      {user && !isLandingPage && (
+      {user && !isLandingPage && !isBonsaiNewPage && (
         <a
           href="/bonsai/new"
           class="flex items-center gap-2 py-4 text-base font-medium text-primary transition-colors hover:text-primary/80"

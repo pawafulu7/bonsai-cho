@@ -503,12 +503,12 @@ export function UnifiedBonsaiForm({
             <div className="flex items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <Label htmlFor={isPublicId} className="cursor-pointer">
-                  公開する
+                  公開設定
                 </Label>
                 <p className="text-sm text-muted-foreground">
                   {formState.isPublic
-                    ? "この盆栽は他のユーザーに公開されます"
-                    : "この盆栽は非公開です（自分のみ閲覧可能）"}
+                    ? "公開（他のユーザーから閲覧可能）"
+                    : "非公開（自分のみ閲覧可能）"}
                 </p>
               </div>
               <Switch

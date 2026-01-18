@@ -22,8 +22,9 @@ if (!bonsaiId) {
 const { user, csrfToken } = await getAuthData(Astro);
 
 if (!user) {
-  const redirectTo = encodeURIComponent(`/bonsai/${bonsaiId}/edit`);
-  return Astro.redirect(`/login?redirect=${redirectTo}`);
+  return Astro.redirect(
+    `/login?redirect=${encodeURIComponent(`/bonsai/${bonsaiId}/edit`)}`
+  );
 }
 
 // Fetch bonsai data and master data in parallel

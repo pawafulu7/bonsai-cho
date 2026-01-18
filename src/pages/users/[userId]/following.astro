@@ -18,7 +18,7 @@ if (!userId) {
 }
 
 // Get auth data
-const { user, csrfToken } = await getAuthData(Astro);
+const { user: _user, csrfToken } = await getAuthData(Astro);
 
 // SSR: Fetch user profile and initial following
 let profile: UserProfile | null = null;

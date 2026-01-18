@@ -35,11 +35,11 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
         </p>
         <div class="mt-10">
           {user ? (
-            <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
+            <a href="/bonsai/new" class={buttonPrimaryStyles}>
               盆栽を登録する
             </a>
           ) : (
-            <a href="/login?returnTo=/bonsai/quick-add" class={buttonPrimaryStyles}>
+            <a href="/login?returnTo=/bonsai/new" class={buttonPrimaryStyles}>
               今すぐ始める
             </a>
           )}

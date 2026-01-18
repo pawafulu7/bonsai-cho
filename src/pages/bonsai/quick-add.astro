@@ -1,0 +1,97 @@
+---
+/**
+ * Bonsai Quick Add Page
+ *
+ * Simplified form for quick bonsai registration with image-first workflow.
+ * Designed for mobile users who want to capture and register quickly.
+ * Requires authentication - redirects to login if not authenticated.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { QuickAddForm } from "@/components/bonsai/form/QuickAddForm";
+import { getAuthData } from "@/lib/auth/server";
+
+// Auth check - redirect to login if not authenticated
+const { user, csrfToken } = await getAuthData(Astro);
+
+if (!user) {
+  return Astro.redirect("/login?redirect=/bonsai/quick-add");
+}
+---
+
+<AppLayout
+  title="クイック登録 | Bonsai-Cho"
+  description="写真から簡単に盆栽を登録します"
+>
+  <div class="container-app py-8">
+    <!-- Breadcrumb -->
+    <nav class="mb-6" aria-label="パンくずリスト">
+      <ol class="flex items-center gap-2 text-sm text-muted-foreground">
+        <li>
+          <a href="/bonsai" class="hover:text-foreground transition-colors">
+            盆栽コレクション
+          </a>
+        </li>
+        <li aria-hidden="true">/</li>
+        <li class="text-foreground font-medium">クイック登録</li>
+      </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <header class="mb-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="font-serif text-3xl font-bold text-foreground md:text-4xl">
+            クイック登録
+          </h1>
+          <p class="mt-2 text-muted-foreground">
+            写真から簡単に盆栽を登録
+          </p>
+        </div>
+        <a
+          href="/bonsai/new"
+          class="text-sm text-primary hover:underline hidden sm:inline-flex items-center gap-1"
+        >
+          <span>詳細入力フォーム</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
+        </a>
+      </div>
+    </header>
+
+    <!-- Form -->
+    <div class="max-w-md mx-auto">
+      <QuickAddForm
+        client:load
+        csrfToken={csrfToken || ""}
+        onSuccess={(bonsaiId: string) => {
+          // Success is handled within the form component
+        }}
+        onCancel={() => {
+          window.history.back();
+        }}
+      />
+
+      <!-- Link to detailed form on mobile -->
+      <div class="mt-8 text-center sm:hidden">
+        <a
+          href="/bonsai/new"
+          class="text-sm text-muted-foreground hover:text-foreground"
+        >
+          詳細情報を入力して登録する場合はこちら
+        </a>
+      </div>
+    </div>
+  </div>
+</AppLayout>

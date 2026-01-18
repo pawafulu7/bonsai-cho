@@ -1,12 +1,13 @@
 ---
 /**
- * Bonsai Create Page
+ * Bonsai Create Page (Unified Form)
  *
- * Form for creating a new bonsai.
+ * Progressive disclosure form for creating a new bonsai.
+ * Features: multiple image upload, collapsible details section.
  * Requires authentication - redirects to login if not authenticated.
  */
 import AppLayout from "@/layouts/AppLayout.astro";
-import { BonsaiForm } from "@/components/bonsai/form";
+import { UnifiedBonsaiForm } from "@/components/bonsai/form";
 import type { Species, Style } from "@/components/bonsai/form";
 import { getAuthData } from "@/lib/auth/server";
 
@@ -97,12 +98,13 @@ try {
     )}
 
     <!-- Form -->
-    <div class="max-w-2xl">
-      <BonsaiForm
+    <div class="max-w-md mx-auto">
+      <UnifiedBonsaiForm
         client:load
         csrfToken={csrfToken || ""}
         speciesList={speciesList}
         styleList={styleList}
+        maxImages={5}
         onSuccess={(bonsaiId: string) => {
           window.location.href = `/bonsai/${bonsaiId}`;
         }}

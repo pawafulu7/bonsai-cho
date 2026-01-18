@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { IMAGE_LIMITS } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +30,12 @@ interface ImagePreviewProps {
   disabled?: boolean;
 }
 
-function ImagePreview({ file, previewUrl, onRemove, disabled }: ImagePreviewProps) {
+function ImagePreview({
+  file,
+  previewUrl,
+  onRemove,
+  disabled,
+}: ImagePreviewProps) {
   return (
     <div className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
       <img
@@ -114,38 +118,45 @@ export function MultiImageDropzone({
 
   // Generate preview URLs when images change
   useEffect(() => {
-    const newUrls = new Map<File, string>();
-    const urlsToRevoke: string[] = [];
+    setPreviewUrls((prevUrls) => {
+      const newUrls = new Map<File, string>();
+      const urlsToRevoke: string[] = [];
 
-    // Keep existing URLs for files that are still selected
-    for (const file of selectedImages) {
-      const existingUrl = previewUrls.get(file);
-      if (existingUrl) {
-        newUrls.set(file, existingUrl);
-      } else {
-        newUrls.set(file, URL.createObjectURL(file));
+      // Keep existing URLs for files that are still selected
+      for (const file of selectedImages) {
+        const existingUrl = prevUrls.get(file);
+        if (existingUrl) {
+          newUrls.set(file, existingUrl);
+        } else {
+          newUrls.set(file, URL.createObjectURL(file));
+        }
       }
-    }
 
-    // Revoke URLs for removed files
-    for (const [file, url] of previewUrls) {
-      if (!selectedImages.includes(file)) {
-        urlsToRevoke.push(url);
+      // Revoke URLs for removed files
+      for (const [file, url] of prevUrls) {
+        if (!selectedImages.includes(file)) {
+          urlsToRevoke.push(url);
+        }
       }
-    }
 
-    setPreviewUrls(newUrls);
+      // Cleanup revoked URLs (outside of state update to avoid side effects during render)
+      setTimeout(() => {
+        for (const url of urlsToRevoke) {
+          URL.revokeObjectURL(url);
+        }
+      }, 0);
 
-    // Cleanup revoked URLs
-    for (const url of urlsToRevoke) {
-      URL.revokeObjectURL(url);
-    }
+      return newUrls;
+    });
   }, [selectedImages]);
 
   // Cleanup all URLs on unmount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Cleanup only on unmount, uses ref pattern implicitly
   useEffect(() => {
+    // Store current previewUrls reference for cleanup
+    const urlsRef = previewUrls;
     return () => {
-      for (const url of previewUrls.values()) {
+      for (const url of urlsRef.values()) {
         URL.revokeObjectURL(url);
       }
     };
@@ -397,7 +408,8 @@ export function MultiImageDropzone({
 
       {/* Help text for screen readers */}
       <p id={helpId} className="sr-only">
-        JPEG、PNG、WebP形式。最大{maxImages}枚まで。ドラッグ&ドロップまたはクリックで選択できます。
+        JPEG、PNG、WebP形式。最大{maxImages}
+        枚まで。ドラッグ&ドロップまたはクリックで選択できます。
       </p>
 
       {/* Counter and error */}

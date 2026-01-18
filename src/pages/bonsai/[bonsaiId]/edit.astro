@@ -1,0 +1,155 @@
+---
+/**
+ * Bonsai Edit Page
+ *
+ * Form for editing an existing bonsai.
+ * Requires authentication and ownership - redirects if not owner.
+ */
+import AppLayout from "@/layouts/AppLayout.astro";
+import { BonsaiForm } from "@/components/bonsai/form";
+import type { Species, Style } from "@/components/bonsai/form";
+import { getAuthData } from "@/lib/auth/server";
+import type { BonsaiDetailResponse } from "@/server/routes/bonsai.schema";
+
+// Get route params
+const { bonsaiId } = Astro.params;
+
+if (!bonsaiId) {
+  return Astro.redirect("/bonsai");
+}
+
+// Auth check - redirect to login if not authenticated
+const { user, csrfToken } = await getAuthData(Astro);
+
+if (!user) {
+  const redirectTo = encodeURIComponent(`/bonsai/${bonsaiId}/edit`);
+  return Astro.redirect(`/login?redirect=${redirectTo}`);
+}
+
+// Fetch bonsai data and master data in parallel
+let bonsai: BonsaiDetailResponse | null = null;
+let speciesList: Species[] = [];
+let styleList: Style[] = [];
+let fetchError: string | null = null;
+
+try {
+  const cookieHeader = Astro.request.headers.get("cookie") || "";
+
+  const [bonsaiRes, speciesRes, stylesRes] = await Promise.all([
+    fetch(`${Astro.url.origin}/api/bonsai/${bonsaiId}`, {
+      headers: { Cookie: cookieHeader },
+    }),
+    fetch(`${Astro.url.origin}/api/masters/species`, {
+      headers: { Cookie: cookieHeader },
+    }),
+    fetch(`${Astro.url.origin}/api/masters/styles`, {
+      headers: { Cookie: cookieHeader },
+    }),
+  ]);
+
+  // Handle bonsai not found
+  if (bonsaiRes.status === 404) {
+    return Astro.redirect("/bonsai");
+  }
+
+  if (!bonsaiRes.ok) {
+    fetchError = "盆栽データの取得に失敗しました";
+  } else {
+    bonsai = await bonsaiRes.json();
+  }
+
+  // Check ownership - redirect if not owner
+  if (bonsai && bonsai.userId !== user.id) {
+    return Astro.redirect(`/bonsai/${bonsaiId}`);
+  }
+
+  if (speciesRes.ok) {
+    const speciesData = await speciesRes.json();
+    speciesList = speciesData.data || [];
+  } else if (!fetchError) {
+    fetchError = "樹種データの取得に失敗しました";
+  }
+
+  if (stylesRes.ok) {
+    const stylesData = await stylesRes.json();
+    styleList = stylesData.data || [];
+  } else if (!fetchError) {
+    fetchError = "樹形データの取得に失敗しました";
+  }
+} catch (e) {
+  console.error("Error fetching data:", e);
+  fetchError = "データの取得に失敗しました";
+}
+---
+
+<AppLayout
+  title={bonsai ? `${bonsai.name}を編集 | Bonsai-Cho` : "盆栽編集 | Bonsai-Cho"}
+  description="盆栽の情報を編集します"
+>
+  <div class="container-app py-8">
+    <!-- Breadcrumb -->
+    <nav class="mb-6" aria-label="パンくずリスト">
+      <ol class="flex items-center gap-2 text-sm text-muted-foreground">
+        <li>
+          <a href="/bonsai" class="hover:text-foreground transition-colors">
+            盆栽コレクション
+          </a>
+        </li>
+        <li aria-hidden="true">/</li>
+        {bonsai && (
+          <>
+            <li>
+              <a href={`/bonsai/${bonsaiId}`} class="hover:text-foreground transition-colors">
+                {bonsai.name}
+              </a>
+            </li>
+            <li aria-hidden="true">/</li>
+          </>
+        )}
+        <li class="text-foreground font-medium">編集</li>
+      </ol>
+    </nav>
+
+    <!-- Page Header -->
+    <header class="mb-8">
+      <h1 class="font-serif text-3xl font-bold text-foreground md:text-4xl">
+        {bonsai ? `${bonsai.name}を編集` : "盆栽を編集"}
+      </h1>
+      <p class="mt-2 text-muted-foreground">
+        盆栽の情報を更新します
+      </p>
+    </header>
+
+    <!-- Error State -->
+    {fetchError && (
+      <div class="rounded-lg bg-destructive/10 p-4 text-center text-destructive mb-8">
+        <p>{fetchError}</p>
+        <a
+          href={`/bonsai/${bonsaiId}`}
+          class="mt-2 inline-block text-sm underline hover:no-underline"
+        >
+          詳細に戻る
+        </a>
+      </div>
+    )}
+
+    <!-- Form -->
+    {bonsai && (
+      <div class="max-w-2xl">
+        <BonsaiForm
+          client:load
+          initialData={bonsai}
+          csrfToken={csrfToken || ""}
+          speciesList={speciesList}
+          styleList={styleList}
+          onSuccess={() => {
+            window.location.href = `/bonsai/${bonsaiId}`;
+          }}
+          onCancel={() => {
+            window.location.href = `/bonsai/${bonsaiId}`;
+          }}
+        />
+      </div>
+    )}
+  </div>
+</AppLayout>

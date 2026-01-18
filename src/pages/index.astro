@@ -35,6 +35,9 @@ const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-backgrou
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
         <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <a href="/bonsai" class={buttonOutlineStyles}>
+            盆栽を見る
+          </a>
           {user ? (
             <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
               盆栽を登録する
@@ -44,9 +47,6 @@ const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-backgrou
               今すぐ始める
             </a>
           )}
-          <a href="/bonsai" class={buttonOutlineStyles}>
-            盆栽を見る
-          </a>
         </div>
       </div>
     </div>

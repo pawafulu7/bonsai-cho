@@ -56,6 +56,28 @@ const isBonsaiPage =
         >
           盆栽一覧
         </a>
+        {user && (
+          <a
+            href="/bonsai/quick-add"
+            class="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="h-4 w-4"
+              aria-hidden="true"
+            >
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+            <span>クイック登録</span>
+          </a>
+        )}
       </nav>
 
       <!-- Actions -->
@@ -114,6 +136,28 @@ const isBonsaiPage =
       >
         盆栽一覧
       </a>
+      {user && (
+        <a
+          href="/bonsai/quick-add"
+          class="flex items-center gap-2 py-4 text-base font-medium text-primary transition-colors hover:text-primary/80"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="h-5 w-5"
+            aria-hidden="true"
+          >
+            <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+            <circle cx="12" cy="13" r="3" />
+          </svg>
+          クイック登録
+        </a>
+      )}
       {!user && (
         <a
           href="/login"

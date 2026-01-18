@@ -7,6 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getAuthData } from "@/lib/auth/server";
+
+// Get auth data to show appropriate CTA buttons
+const { user } = await getAuthData(Astro);
 ---
 
 <AppLayout
@@ -26,9 +30,15 @@ import {
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
         <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button asChild size="lg" className="h-12 px-8 text-base">
-            <a href="/login">今すぐ始める</a>
-          </Button>
+          {user ? (
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <a href="/bonsai/quick-add">盆栽を登録する</a>
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <a href="/login?returnTo=/bonsai/quick-add">今すぐ始める</a>
+            </Button>
+          )}
           <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base">
             <a href="/bonsai">盆栽を見る</a>
           </Button>
@@ -119,9 +129,15 @@ import {
           盆栽愛好家のコミュニティに参加して、あなたのコレクションを記録しましょう。
         </p>
         <div class="mt-8">
-          <Button asChild size="lg" className="h-12 px-8 text-base">
-            <a href="/login">無料で始める</a>
-          </Button>
+          {user ? (
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <a href="/bonsai/quick-add">新しい盆栽を追加</a>
+            </Button>
+          ) : (
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <a href="/login?returnTo=/bonsai/quick-add">無料で始める</a>
+            </Button>
+          )}
         </div>
       </div>
     </div>

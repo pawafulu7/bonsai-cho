@@ -216,12 +216,22 @@ export interface BonsaiCardProps {
 }
 
 /**
+ * Empty State CTA configuration
+ */
+export interface EmptyCtaConfig {
+  label: string;
+  href: string;
+}
+
+/**
  * Props for BonsaiCardGrid component
  */
 export interface BonsaiCardGridProps {
   initialData: BonsaiListItemWithSocial[];
   initialCursor: string | null;
   initialHasMore: boolean;
+  /** Empty State CTA configuration (presentational pattern) */
+  emptyCta?: EmptyCtaConfig;
 }
 
 /**

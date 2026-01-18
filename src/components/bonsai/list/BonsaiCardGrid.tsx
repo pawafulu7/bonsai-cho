@@ -19,6 +19,7 @@ export function BonsaiCardGrid({
   initialData,
   initialCursor,
   initialHasMore,
+  emptyCta = { label: "盆栽を登録する", href: "/bonsai/quick-add" },
 }: BonsaiCardGridProps) {
   const { items, hasMore, isLoading, loadMore } = useBonsaiList({
     initialData,
@@ -53,7 +54,7 @@ export function BonsaiCardGrid({
     };
   }, [hasMore, isLoading, loadMore]);
 
-  // Empty state
+  // Empty state (presentational: CTA configured via props)
   if (items.length === 0 && !isLoading) {
     return (
       <div className="text-center py-16">
@@ -61,7 +62,7 @@ export function BonsaiCardGrid({
           まだ盆栽が登録されていません
         </p>
         <Button asChild>
-          <a href="/bonsai/new">最初の盆栽を登録する</a>
+          <a href={emptyCta.href}>{emptyCta.label}</a>
         </Button>
       </div>
     );

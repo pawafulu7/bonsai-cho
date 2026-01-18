@@ -75,7 +75,7 @@ if (!user) {
       <QuickAddForm
         client:load
         csrfToken={csrfToken || ""}
-        onSuccess={(bonsaiId: string) => {
+        onSuccess={(_bonsaiId: string) => {
           // Success is handled within the form component
         }}
         onCancel={() => {

@@ -378,6 +378,11 @@ export function useBonsaiForm({
     (field: keyof BonsaiFormData) => {
       const error = validateSingleField(field, formData[field]);
       setErrors((prev) => {
+        const currentError = prev[field];
+        // Skip update if error state hasn't changed
+        if (error === currentError) return prev;
+        if (!error && !currentError) return prev;
+
         if (error) {
           return { ...prev, [field]: error };
         }

@@ -333,12 +333,12 @@ export function BonsaiForm({
                   clearError("height");
                 }}
                 onBlur={() => validateField("height")}
-                min={0}
+                min={0.1}
                 max={500}
                 step="0.1"
                 aria-invalid={!!errors.height}
                 aria-describedby={errors.height ? heightErrorId : undefined}
-                placeholder="0"
+                placeholder="0.1"
                 className="pr-10"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
@@ -361,12 +361,12 @@ export function BonsaiForm({
                   clearError("width");
                 }}
                 onBlur={() => validateField("width")}
-                min={0}
+                min={0.1}
                 max={500}
                 step="0.1"
                 aria-invalid={!!errors.width}
                 aria-describedby={errors.width ? widthErrorId : undefined}
-                placeholder="0"
+                placeholder="0.1"
                 className="pr-10"
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">

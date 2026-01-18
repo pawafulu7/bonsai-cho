@@ -235,14 +235,14 @@ export function ImageDropzone({
         aria-describedby={displayError ? errorId : helpId}
         aria-disabled={disabled}
         className={cn(
-          "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
+          "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors duration-150",
           "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
           isDragging && "border-primary bg-primary/5",
           displayError && "border-destructive",
           disabled && "cursor-not-allowed opacity-50",
           !isDragging &&
             !displayError &&
-            "border-muted-foreground/25 hover:border-primary hover:bg-primary/10 transition-colors duration-150"
+            "border-muted-foreground/25 hover:border-primary hover:bg-primary/10"
         )}
       >
         {hasImage ? (

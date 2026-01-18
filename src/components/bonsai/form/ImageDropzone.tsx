@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IMAGE_LIMITS } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -61,6 +61,7 @@ export function ImageDropzone({
 }: ImageDropzoneProps) {
   const inputId = useId();
   const errorId = `${inputId}-error`;
+  const helpId = `${inputId}-help`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -83,6 +84,15 @@ export function ImageDropzone({
     },
     [previewUrl]
   );
+
+  // Cleanup object URL on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   // Handle file selection
   const handleFileSelect = useCallback(
@@ -217,7 +227,12 @@ export function ImageDropzone({
         onDrop={handleDrop}
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label={hasImage ? "画像を変更" : "画像をアップロード"}
+        aria-label={
+          hasImage
+            ? `選択中: ${selectedImage.name}。クリックまたはドラッグで画像を変更`
+            : "画像をアップロード。クリックまたはドラッグで選択"
+        }
+        aria-describedby={displayError ? errorId : helpId}
         aria-disabled={disabled}
         className={cn(
           "relative flex min-h-[200px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors",
@@ -306,7 +321,7 @@ export function ImageDropzone({
               <p className="text-xs text-muted-foreground">
                 ドラッグ&ドロップまたはクリックして選択
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground" aria-hidden="true">
                 JPEG, PNG, WebP (最大10MB)
               </p>
             </div>
@@ -345,6 +360,11 @@ export function ImageDropzone({
           </div>
         )}
       </div>
+
+      {/* Help text for screen readers (always available) */}
+      <p id={helpId} className="sr-only">
+        JPEG、PNG、WebP形式。最大10MB。ドラッグ&ドロップまたはクリックで選択できます。
+      </p>
 
       {/* Error message */}
       {displayError && (

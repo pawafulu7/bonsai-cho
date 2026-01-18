@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { needsResize, resizeImage } from "@/lib/utils/image-resize";
+import { prepareImageForUpload } from "@/lib/utils/image-resize";
 
 /**
  * Progress states for quick add operation
@@ -118,15 +118,6 @@ async function uploadImage(
 }
 
 /**
- * Generate a safe filename with extension based on format
- */
-function generateFilename(originalName: string, format: string): string {
-  const baseName = originalName.replace(/\.[^/.]+$/, "");
-  const extension = format === "image/webp" ? ".webp" : ".jpg";
-  return `${baseName}${extension}`;
-}
-
-/**
  * useQuickAddBonsai - Custom hook for quick bonsai registration
  *
  * Handles the two-step process of:
@@ -173,33 +164,35 @@ export function useQuickAddBonsai({
       setProgress("idle");
 
       let bonsaiId: string | null = null;
+      // Use local variable to track current stage (avoids stale state in catch)
+      let currentStage: "resizing" | "creating" | "uploading" = "resizing";
 
       try {
-        // Step 1: Resize image if needed
+        // Step 1: Prepare image (resize if needed) - single image decode
+        currentStage = "resizing";
         setProgress("resizing");
-        let imageBlob: Blob = data.image;
-        let filename = data.image.name;
-
-        const shouldResize = await needsResize(data.image);
-        if (shouldResize) {
-          const resizeResult = await resizeImage(data.image, {
-            maxWidth: 2048,
-            maxHeight: 2048,
-            quality: 0.85,
-            format: "image/jpeg",
-          });
-          imageBlob = resizeResult.blob;
-          filename = generateFilename(data.image.name, "image/jpeg");
-        }
+        const prepareResult = await prepareImageForUpload(data.image, {
+          maxWidth: 2048,
+          maxHeight: 2048,
+          quality: 0.85,
+          format: "image/jpeg",
+        });
 
         // Step 2: Create bonsai
+        currentStage = "creating";
         setProgress("creating");
         bonsaiId = await createBonsai(data.name, data.memo, csrfToken);
         setCreatedBonsaiId(bonsaiId);
 
         // Step 3: Upload image
+        currentStage = "uploading";
         setProgress("uploading");
-        await uploadImage(bonsaiId, imageBlob, filename, csrfToken);
+        await uploadImage(
+          bonsaiId,
+          prepareResult.blob,
+          prepareResult.filename,
+          csrfToken
+        );
 
         // Success
         setProgress("complete");
@@ -208,19 +201,19 @@ export function useQuickAddBonsai({
         console.error("Quick add error:", err);
         setProgress("error");
 
-        // Provide specific error messages
-        if (bonsaiId && progress === "uploading") {
+        // Provide specific error messages based on local stage variable
+        if (bonsaiId && currentStage === "uploading") {
           // Bonsai was created but image upload failed
           setError(
             "盆栽は登録されましたが、画像のアップロードに失敗しました。詳細ページから画像を追加できます。"
           );
-        } else if (progress === "creating") {
+        } else if (currentStage === "creating") {
           setError(
             err instanceof Error
               ? err.message
               : "盆栽の登録に失敗しました。もう一度お試しください。"
           );
-        } else if (progress === "resizing") {
+        } else if (currentStage === "resizing") {
           setError("画像の処理に失敗しました。別の画像をお試しください。");
         } else {
           setError(
@@ -233,7 +226,7 @@ export function useQuickAddBonsai({
         setIsSubmitting(false);
       }
     },
-    [csrfToken, onSuccess, progress]
+    [csrfToken, onSuccess]
   );
 
   return {

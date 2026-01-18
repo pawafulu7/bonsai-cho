@@ -245,6 +245,110 @@ export async function getImageDimensions(
 }
 
 /**
+ * Result of image preparation for upload
+ */
+export interface PrepareResult {
+  /** Image blob ready for upload */
+  blob: Blob;
+  /** Suggested filename with correct extension */
+  filename: string;
+  /** Whether the image was resized */
+  wasResized: boolean;
+  /** Final width */
+  width: number;
+  /** Final height */
+  height: number;
+}
+
+/**
+ * Prepare an image for upload - loads image once and resizes if needed
+ *
+ * This is an optimized function that avoids double image decoding.
+ * It loads the image once, checks if resizing is needed, and only then
+ * processes it through canvas.
+ *
+ * @param file - Image file to prepare
+ * @param options - Resize options (optional, uses defaults if not provided)
+ * @returns Promise resolving to prepared image blob and metadata
+ *
+ * @example
+ * ```typescript
+ * const result = await prepareImageForUpload(file);
+ * if (result.wasResized) {
+ *   console.log('Image was resized');
+ * }
+ * formData.append('file', result.blob, result.filename);
+ * ```
+ */
+export async function prepareImageForUpload(
+  file: File,
+  options: Partial<ResizeOptions> = {}
+): Promise<PrepareResult> {
+  const opts: ResizeOptions = { ...DEFAULT_RESIZE_OPTIONS, ...options };
+
+  // Load image once
+  const img = await loadImage(file);
+  const originalWidth = img.naturalWidth;
+  const originalHeight = img.naturalHeight;
+
+  // Check if resize is needed
+  const needsProcessing =
+    originalWidth > opts.maxWidth || originalHeight > opts.maxHeight;
+
+  if (!needsProcessing) {
+    // Return original file without re-encoding (preserves quality)
+    return {
+      blob: file,
+      filename: file.name,
+      wasResized: false,
+      width: originalWidth,
+      height: originalHeight,
+    };
+  }
+
+  // Calculate new dimensions
+  const { width, height } = calculateDimensions(
+    originalWidth,
+    originalHeight,
+    opts.maxWidth,
+    opts.maxHeight
+  );
+
+  // Create canvas and draw resized image
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Failed to get canvas context");
+  }
+
+  // Use high quality image smoothing
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Draw image to canvas
+  ctx.drawImage(img, 0, 0, width, height);
+
+  // Convert to blob
+  const blob = await canvasToBlob(canvas, opts.format, opts.quality);
+
+  // Generate filename with correct extension
+  const baseName = file.name.replace(/\.[^/.]+$/, "");
+  const extension = opts.format === "image/webp" ? ".webp" : ".jpg";
+  const filename = `${baseName}${extension}`;
+
+  return {
+    blob,
+    filename,
+    wasResized: true,
+    width,
+    height,
+  };
+}
+
+/**
  * Format file size for display
  *
  * @param bytes - Size in bytes

@@ -77,7 +77,7 @@ export function CommentSection({
           コメントするには
           <a
             href="/auth/login"
-            className="text-primary hover:underline focus:underline mx-1"
+            className="text-primary underline underline-offset-4 font-medium mx-1 hover:text-primary/80 focus:text-primary/80"
           >
             ログイン
           </a>

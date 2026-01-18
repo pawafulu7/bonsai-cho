@@ -1,6 +1,5 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardDescription,
@@ -11,6 +10,11 @@ import { getAuthData } from "@/lib/auth/server";
 
 // Get auth data to show appropriate CTA buttons
 const { user } = await getAuthData(Astro);
+
+// Button styles for Astro templates (avoid asChild issues with Radix Slot)
+const buttonBaseStyles =
+  "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 text-base`;
 ---
 
 <AppLayout
@@ -29,19 +33,16 @@ const { user } = await getAuthData(Astro);
         <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
-        <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div class="mt-10">
           {user ? (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/bonsai/quick-add">盆栽を登録する</a>
-            </Button>
+            <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
+              盆栽を登録する
+            </a>
           ) : (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/login?returnTo=/bonsai/quick-add">今すぐ始める</a>
-            </Button>
+            <a href="/login?returnTo=/bonsai/quick-add" class={buttonPrimaryStyles}>
+              今すぐ始める
+            </a>
           )}
-          <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base">
-            <a href="/bonsai">盆栽を見る</a>
-          </Button>
         </div>
       </div>
     </div>
@@ -118,28 +119,4 @@ const { user } = await getAuthData(Astro);
     </div>
   </section>
 
-  <!-- CTA Section -->
-  <section class="py-20">
-    <div class="container-app">
-      <div class="mx-auto max-w-2xl text-center">
-        <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-          今日から盆栽の記録を始めよう
-        </h2>
-        <p class="mt-4 text-lg text-muted-foreground">
-          盆栽愛好家のコミュニティに参加して、あなたのコレクションを記録しましょう。
-        </p>
-        <div class="mt-8">
-          {user ? (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/bonsai/quick-add">新しい盆栽を追加</a>
-            </Button>
-          ) : (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/login?returnTo=/bonsai/quick-add">無料で始める</a>
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
-  </section>
 </AppLayout>

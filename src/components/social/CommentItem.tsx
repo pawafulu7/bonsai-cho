@@ -85,7 +85,7 @@ export function CommentItem({
               onClick={onDelete}
               disabled={isPending}
               className={cn(
-                "p-1.5 rounded-md",
+                "min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md",
                 "text-muted-foreground hover:text-destructive",
                 "hover:bg-destructive/10",
                 "transition-colors duration-150",

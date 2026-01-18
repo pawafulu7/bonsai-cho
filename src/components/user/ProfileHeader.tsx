@@ -152,30 +152,36 @@ export function ProfileHeader({
       >
         <a
           href={`/users/${currentProfile.id}`}
-          className="text-center hover:text-primary transition-colors"
+          className="text-center hover:text-primary transition-colors group"
         >
           <span className="block text-xl font-bold tabular-nums">
             {currentProfile.bonsaiCount}
           </span>
-          <span className="text-sm text-muted-foreground">盆栽</span>
+          <span className="text-sm text-muted-foreground group-hover:underline underline-offset-4">
+            盆栽
+          </span>
         </a>
         <a
           href={`/users/${currentProfile.id}/followers`}
-          className="text-center hover:text-primary transition-colors"
+          className="text-center hover:text-primary transition-colors group"
         >
           <span className="block text-xl font-bold tabular-nums">
             {currentProfile.followerCount}
           </span>
-          <span className="text-sm text-muted-foreground">フォロワー</span>
+          <span className="text-sm text-muted-foreground group-hover:underline underline-offset-4">
+            フォロワー
+          </span>
         </a>
         <a
           href={`/users/${currentProfile.id}/following`}
-          className="text-center hover:text-primary transition-colors"
+          className="text-center hover:text-primary transition-colors group"
         >
           <span className="block text-xl font-bold tabular-nums">
             {currentProfile.followingCount}
           </span>
-          <span className="text-sm text-muted-foreground">フォロー中</span>
+          <span className="text-sm text-muted-foreground group-hover:underline underline-offset-4">
+            フォロー中
+          </span>
         </a>
       </nav>
 

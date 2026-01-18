@@ -1,6 +1,5 @@
 ---
 import AppLayout from "@/layouts/AppLayout.astro";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardDescription,
@@ -11,6 +10,12 @@ import { getAuthData } from "@/lib/auth/server";
 
 // Get auth data to show appropriate CTA buttons
 const { user } = await getAuthData(Astro);
+
+// Button styles for Astro templates (avoid asChild issues with Radix Slot)
+const buttonBaseStyles =
+  "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 text-base`;
+const buttonOutlineStyles = `${buttonBaseStyles} border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-12 px-8 text-base`;
 ---
 
 <AppLayout
@@ -31,17 +36,17 @@ const { user } = await getAuthData(Astro);
         </p>
         <div class="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
           {user ? (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/bonsai/quick-add">盆栽を登録する</a>
-            </Button>
+            <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
+              盆栽を登録する
+            </a>
           ) : (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/login?returnTo=/bonsai/quick-add">今すぐ始める</a>
-            </Button>
+            <a href="/login?returnTo=/bonsai/quick-add" class={buttonPrimaryStyles}>
+              今すぐ始める
+            </a>
           )}
-          <Button asChild variant="outline" size="lg" className="h-12 px-8 text-base">
-            <a href="/bonsai">盆栽を見る</a>
-          </Button>
+          <a href="/bonsai" class={buttonOutlineStyles}>
+            盆栽を見る
+          </a>
         </div>
       </div>
     </div>
@@ -130,13 +135,13 @@ const { user } = await getAuthData(Astro);
         </p>
         <div class="mt-8">
           {user ? (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/bonsai/quick-add">新しい盆栽を追加</a>
-            </Button>
+            <a href="/bonsai/quick-add" class={buttonPrimaryStyles}>
+              新しい盆栽を追加
+            </a>
           ) : (
-            <Button asChild size="lg" className="h-12 px-8 text-base">
-              <a href="/login?returnTo=/bonsai/quick-add">無料で始める</a>
-            </Button>
+            <a href="/login?returnTo=/bonsai/quick-add" class={buttonPrimaryStyles}>
+              無料で始める
+            </a>
           )}
         </div>
       </div>

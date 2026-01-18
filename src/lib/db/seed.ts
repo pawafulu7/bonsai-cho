@@ -1,6 +1,13 @@
 import { sql } from "drizzle-orm";
 import { createDb } from "./client";
-import { bonsai, careLogs, species, styles, users } from "./schema";
+import {
+  bonsai,
+  bonsaiImages,
+  careLogs,
+  species,
+  styles,
+  users,
+} from "./schema";
 
 /**
  * Parse seed-specific environment variables.
@@ -222,43 +229,43 @@ const testUsersData = [
   {
     id: "user_demo_tanaka",
     email: "demo-tanaka@example.test",
-    name: "Tanaka Taro",
-    displayName: "Bonsai Taro",
-    bio: "Bonsai enthusiast for 20 years. Specializing in kuromatsu and shimpaku.",
-    location: "Tokyo",
+    name: "田中太郎",
+    displayName: "盆栽太郎",
+    bio: "盆栽歴20年の愛好家です。黒松と真柏を中心に育てています。",
+    location: "東京都",
     website: "https://example.test/tanaka",
   },
   {
     id: "user_demo_suzuki",
     email: "demo-suzuki@example.test",
-    name: "Suzuki Hanako",
-    displayName: "Bonsai Girl",
-    bio: "Recently started bonsai. I love maple and cherry blossoms.",
-    location: "Kyoto",
+    name: "鈴木花子",
+    displayName: "盆栽ガール",
+    bio: "最近盆栽を始めました。紅葉と桜が好きです。",
+    location: "京都府",
   },
   {
     id: "user_demo_yamada",
     email: "demo-yamada@example.test",
-    name: "Yamada Ichiro",
-    bio: "I often participate in bonsai exhibitions.",
-    location: "Osaka",
+    name: "山田一郎",
+    bio: "盆栽展示会によく参加しています。",
+    location: "大阪府",
   },
 ];
 
 const testBonsaiData = [
-  // User: tanaka (Expert) - 4 bonsai
+  // User: tanaka（熟練者）- 4本
   {
     id: "bonsai_demo_kuromatsu_01",
     userId: "user_demo_tanaka",
     speciesId: "species_kuromatsu",
     styleId: "style_moyogi",
-    name: "Kokuryu",
+    name: "黒龍",
     description:
-      "A 45-year-old kuromatsu with powerful trunk movement. Won grand prize at the regional exhibition.",
+      "樹齢45年の黒松。力強い幹の動きが特徴。県展示会で金賞を受賞した自慢の一本。",
     estimatedAge: 45,
     height: 65,
     width: 50,
-    potDetails: "Tokoname unglazed rectangle pot",
+    potDetails: "常滑焼 無釉長方鉢",
     isPublic: true,
   },
   {
@@ -266,13 +273,13 @@ const testBonsaiData = [
     userId: "user_demo_tanaka",
     speciesId: "species_shimpaku",
     styleId: "style_kengai",
-    name: "Seiun",
+    name: "青雲",
     description:
-      "Cascade style shimpaku with beautiful jin and shari. Acquired from a bonsai master 10 years ago.",
+      "懸崖仕立ての真柏。見事なジンとシャリが見どころ。10年前に師匠から譲り受けた思い出の木。",
     estimatedAge: 30,
     height: 40,
     width: 35,
-    potDetails: "Round cascade pot",
+    potDetails: "丸型懸崖鉢",
     isPublic: true,
   },
   {
@@ -280,13 +287,13 @@ const testBonsaiData = [
     userId: "user_demo_tanaka",
     speciesId: "species_kaede",
     styleId: "style_chokkan",
-    name: "Kouen",
+    name: "紅炎",
     description:
-      "Formal upright maple with stunning autumn colors. Fine ramification achieved through years of work.",
+      "直幹仕立ての楓。秋の紅葉が素晴らしい。長年かけて作り込んだ細かい枝が自慢。",
     estimatedAge: 25,
     height: 55,
     width: 45,
-    potDetails: "Blue glazed oval pot",
+    potDetails: "青磁釉 楕円鉢",
     isPublic: true,
   },
   {
@@ -294,29 +301,29 @@ const testBonsaiData = [
     userId: "user_demo_tanaka",
     speciesId: "species_goyo_matsu",
     styleId: "style_bunjingi",
-    name: "Hakuho",
+    name: "白峰",
     description:
-      "Literati style goyomatsu with elegant trunk line. A heritage tree passed down in the family.",
+      "文人木仕立ての五葉松。優雅な幹の線が特徴。代々受け継がれてきた家宝の木。",
     estimatedAge: 50,
     height: 70,
     width: 30,
-    potDetails: "Shallow round pot",
+    potDetails: "浅丸鉢",
     isPublic: true,
   },
 
-  // User: suzuki (Intermediate) - 3 bonsai
+  // User: suzuki（中級者）- 3本
   {
     id: "bonsai_demo_sakura_01",
     userId: "user_demo_suzuki",
     speciesId: "species_sakura",
     styleId: "style_shakan",
-    name: "Harugasumi",
+    name: "春霞",
     description:
-      "Slanting cherry blossom tree. Beautiful pink flowers bloom every spring.",
+      "斜幹仕立ての桜。毎年春にはピンクの花が咲き誇ります。お気に入りの一本。",
     estimatedAge: 8,
     height: 35,
     width: 30,
-    potDetails: "Pink glazed oval pot",
+    potDetails: "ピンク釉 楕円鉢",
     isPublic: true,
   },
   {
@@ -324,13 +331,13 @@ const testBonsaiData = [
     userId: "user_demo_suzuki",
     speciesId: "species_kaede",
     styleId: "style_hokidachi",
-    name: "Akinishiki",
+    name: "秋錦",
     description:
-      "Broom style maple with beautiful fall colors. Started from a cutting 12 years ago.",
+      "箒作りの楓。紅葉の美しさは格別。12年前に挿し木から育てました。",
     estimatedAge: 12,
     height: 45,
     width: 40,
-    potDetails: "Brown unglazed oval pot",
+    potDetails: "茶色無釉 楕円鉢",
     isPublic: true,
   },
   {
@@ -338,29 +345,27 @@ const testBonsaiData = [
     userId: "user_demo_suzuki",
     speciesId: "species_azalea",
     styleId: "style_moyogi",
-    name: "Shiun",
-    description:
-      "Satsuki azalea with purple flowers. Blooms beautifully in late spring.",
+    name: "紫雲",
+    description: "模様木仕立てのサツキ。紫色の花が特徴。初夏に美しく咲きます。",
     estimatedAge: 10,
     height: 30,
     width: 35,
-    potDetails: "White glazed rectangle pot",
+    potDetails: "白釉 長方鉢",
     isPublic: true,
   },
 
-  // User: yamada (Beginner) - 3 bonsai
+  // User: yamada（初心者）- 3本
   {
     id: "bonsai_demo_keyaki_01",
     userId: "user_demo_yamada",
     speciesId: "species_keyaki",
     styleId: "style_hokidachi",
-    name: "Wakaba",
-    description:
-      "Young zelkova in broom style. Working on developing fine ramification.",
+    name: "若葉",
+    description: "箒作りを目指して育てている欅。小枝の充実に取り組んでいます。",
     estimatedAge: 5,
     height: 25,
     width: 20,
-    potDetails: "Small brown pot",
+    potDetails: "小型茶鉢",
     isPublic: true,
   },
   {
@@ -368,13 +373,12 @@ const testBonsaiData = [
     userId: "user_demo_yamada",
     speciesId: "species_ume",
     styleId: "style_shakan",
-    name: "Hakubai",
-    description:
-      "White plum with fragrant flowers. A gift from a bonsai club member.",
+    name: "白梅",
+    description: "白い花の梅。芳香が楽しみ。盆栽会の先輩から頂いた大切な木。",
     estimatedAge: 7,
     height: 30,
     width: 25,
-    potDetails: "Green glazed pot",
+    potDetails: "緑釉鉢",
     isPublic: true,
   },
   {
@@ -382,13 +386,12 @@ const testBonsaiData = [
     userId: "user_demo_yamada",
     speciesId: "species_kuromatsu",
     styleId: "style_chokkan",
-    name: "Uijin",
-    description:
-      "My first kuromatsu. Learning the basics of pine care with this tree.",
+    name: "初陣",
+    description: "初めての黒松。松の基本を学びながら育てています。",
     estimatedAge: 3,
     height: 20,
     width: 15,
-    potDetails: "Training pot",
+    potDetails: "培養鉢",
     isPublic: true,
   },
 ];
@@ -398,195 +401,396 @@ const testBonsaiData = [
  */
 function generateTestCareLogsData() {
   return [
-    // Care logs for bonsai_demo_kuromatsu_01
+    // 黒龍（黒松）のケアログ
     {
       id: "carelog_demo_kuromatsu_01_001",
       bonsaiId: "bonsai_demo_kuromatsu_01",
       careType: "watering" as const,
-      description: "Morning watering. Also misted the foliage.",
+      description: "朝の水やり。葉水も実施しました。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_kuromatsu_01_002",
       bonsaiId: "bonsai_demo_kuromatsu_01",
       careType: "pruning" as const,
-      description: "Removed unwanted buds. Shaped the tree structure.",
+      description: "不要な芽を摘み取り。樹形を整えました。",
       performedAt: daysAgo(5),
     },
     {
       id: "carelog_demo_kuromatsu_01_003",
       bonsaiId: "bonsai_demo_kuromatsu_01",
       careType: "fertilizing" as const,
-      description: "Applied organic fertilizer for winter preparation.",
+      description: "冬越し準備として有機肥料を施肥。",
       performedAt: daysAgo(14),
     },
 
-    // Care logs for bonsai_demo_shimpaku_01
+    // 青雲（真柏）のケアログ
     {
       id: "carelog_demo_shimpaku_01_001",
       bonsaiId: "bonsai_demo_shimpaku_01",
       careType: "watering" as const,
-      description: "Careful watering to avoid overwatering juniper.",
+      description: "真柏は過湿を嫌うため控えめに水やり。",
       performedAt: daysAgo(2),
     },
     {
       id: "carelog_demo_shimpaku_01_002",
       bonsaiId: "bonsai_demo_shimpaku_01",
       careType: "wiring" as const,
-      description: "Adjusted wire on lower branches. Checking for bite marks.",
+      description: "下枝の針金を調整。食い込みがないか確認。",
       performedAt: daysAgo(10),
     },
 
-    // Care logs for bonsai_demo_kaede_01
+    // 紅炎（楓）のケアログ
     {
       id: "carelog_demo_kaede_01_001",
       bonsaiId: "bonsai_demo_kaede_01",
       careType: "watering" as const,
-      description: "Daily watering. Maple requires consistent moisture.",
+      description: "毎日の水やり。楓は水切れに注意が必要。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_kaede_01_002",
       bonsaiId: "bonsai_demo_kaede_01",
       careType: "pruning" as const,
-      description: "Light pruning to maintain shape after leaf fall.",
+      description: "落葉後の軽い剪定で樹形を維持。",
       performedAt: daysAgo(7),
     },
     {
       id: "carelog_demo_kaede_01_003",
       bonsaiId: "bonsai_demo_kaede_01",
       careType: "other" as const,
-      description: "Moved to winter protection area.",
+      description: "冬囲いの場所へ移動しました。",
       performedAt: daysAgo(21),
     },
 
-    // Care logs for bonsai_demo_goyo_01
+    // 白峰（五葉松）のケアログ
     {
       id: "carelog_demo_goyo_01_001",
       bonsaiId: "bonsai_demo_goyo_01",
       careType: "watering" as const,
-      description: "Light watering. White pine prefers drier conditions.",
+      description: "控えめに水やり。五葉松は乾燥気味を好みます。",
       performedAt: daysAgo(3),
     },
     {
       id: "carelog_demo_goyo_01_002",
       bonsaiId: "bonsai_demo_goyo_01",
       careType: "fertilizing" as const,
-      description: "Applied weak fertilizer. Being careful not to overfeed.",
+      description: "薄めの肥料を施肥。過肥料に注意。",
       performedAt: daysAgo(20),
     },
 
-    // Care logs for bonsai_demo_sakura_01
+    // 春霞（桜）のケアログ
     {
       id: "carelog_demo_sakura_01_001",
       bonsaiId: "bonsai_demo_sakura_01",
       careType: "watering" as const,
-      description: "Watered thoroughly. Cherry needs good hydration.",
+      description: "たっぷり水やり。桜は水を好みます。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_sakura_01_002",
       bonsaiId: "bonsai_demo_sakura_01",
       careType: "pruning" as const,
-      description: "Pruned after flowering to shape for next year.",
+      description: "花後の剪定。来年の樹形を意識して整枝。",
       performedAt: daysAgo(8),
     },
 
-    // Care logs for bonsai_demo_kaede_02
+    // 秋錦（楓）のケアログ
     {
       id: "carelog_demo_kaede_02_001",
       bonsaiId: "bonsai_demo_kaede_02",
       careType: "watering" as const,
-      description: "Regular watering schedule maintained.",
+      description: "定期的な水やりを継続中。",
       performedAt: daysAgo(2),
     },
     {
       id: "carelog_demo_kaede_02_002",
       bonsaiId: "bonsai_demo_kaede_02",
       careType: "repotting" as const,
-      description: "Checked roots. Planning repotting for next spring.",
+      description: "根の状態を確認。来春の植え替えを予定。",
       performedAt: daysAgo(15),
     },
 
-    // Care logs for bonsai_demo_azalea_01
+    // 紫雲（サツキ）のケアログ
     {
       id: "carelog_demo_azalea_01_001",
       bonsaiId: "bonsai_demo_azalea_01",
       careType: "watering" as const,
-      description: "Watered with rainwater. Azalea prefers acidic water.",
+      description: "雨水で水やり。サツキは酸性を好みます。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_azalea_01_002",
       bonsaiId: "bonsai_demo_azalea_01",
       careType: "fertilizing" as const,
-      description: "Applied azalea-specific fertilizer.",
+      description: "サツキ専用肥料を施肥。",
       performedAt: daysAgo(12),
     },
     {
       id: "carelog_demo_azalea_01_003",
       bonsaiId: "bonsai_demo_azalea_01",
       careType: "pruning" as const,
-      description: "Removed spent flowers and shaped branches.",
+      description: "花がら摘みと枝の整理。",
       performedAt: daysAgo(25),
     },
 
-    // Care logs for bonsai_demo_keyaki_01
+    // 若葉（欅）のケアログ
     {
       id: "carelog_demo_keyaki_01_001",
       bonsaiId: "bonsai_demo_keyaki_01",
       careType: "watering" as const,
-      description: "Watered in the morning as usual.",
+      description: "いつも通り朝の水やり。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_keyaki_01_002",
       bonsaiId: "bonsai_demo_keyaki_01",
       careType: "other" as const,
-      description: "Checked for pests. All clear.",
+      description: "害虫チェック。問題なし。",
       performedAt: daysAgo(6),
     },
 
-    // Care logs for bonsai_demo_ume_01
+    // 白梅（梅）のケアログ
     {
       id: "carelog_demo_ume_01_001",
       bonsaiId: "bonsai_demo_ume_01",
       careType: "watering" as const,
-      description: "Moderate watering. Plum doesn't like wet feet.",
+      description: "控えめに水やり。梅は過湿を嫌います。",
       performedAt: daysAgo(2),
     },
     {
       id: "carelog_demo_ume_01_002",
       bonsaiId: "bonsai_demo_ume_01",
       careType: "wiring" as const,
-      description: "Applied wire to shape young branches.",
+      description: "若い枝に針金かけ。樹形づくり。",
       performedAt: daysAgo(18),
     },
 
-    // Care logs for bonsai_demo_kuromatsu_02
+    // 初陣（黒松）のケアログ
     {
       id: "carelog_demo_kuromatsu_02_001",
       bonsaiId: "bonsai_demo_kuromatsu_02",
       careType: "watering" as const,
-      description: "Learning proper watering technique for pines.",
+      description: "松の水やり方法を勉強中。",
       performedAt: daysAgo(1),
     },
     {
       id: "carelog_demo_kuromatsu_02_002",
       bonsaiId: "bonsai_demo_kuromatsu_02",
       careType: "fertilizing" as const,
-      description: "First time fertilizing this tree. Following club advice.",
+      description: "初めての施肥。盆栽会のアドバイスに従って。",
       performedAt: daysAgo(10),
     },
     {
       id: "carelog_demo_kuromatsu_02_003",
       bonsaiId: "bonsai_demo_kuromatsu_02",
       careType: "other" as const,
-      description: "Attended club meeting. Got tips on pine care.",
+      description: "盆栽会の例会に参加。松の手入れを学びました。",
       performedAt: daysAgo(22),
     },
   ];
 }
+
+// =============================================================================
+// Test Bonsai Images Data
+// =============================================================================
+
+/**
+ * Generate bonsai images with picsum.photos placeholder URLs.
+ * Each bonsai gets 1-3 images.
+ */
+const testBonsaiImagesData = [
+  // 黒龍（黒松）- 3枚
+  {
+    id: "image_demo_kuromatsu_01_001",
+    bonsaiId: "bonsai_demo_kuromatsu_01",
+    imageUrl: "https://picsum.photos/seed/kuromatsu01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kuromatsu01a/200/150",
+    caption: "正面からの全景",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_kuromatsu_01_002",
+    bonsaiId: "bonsai_demo_kuromatsu_01",
+    imageUrl: "https://picsum.photos/seed/kuromatsu01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kuromatsu01b/200/150",
+    caption: "幹の立ち上がり部分",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+  {
+    id: "image_demo_kuromatsu_01_003",
+    bonsaiId: "bonsai_demo_kuromatsu_01",
+    imageUrl: "https://picsum.photos/seed/kuromatsu01c/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kuromatsu01c/200/150",
+    caption: "背面からの姿",
+    isPrimary: false,
+    sortOrder: 2,
+  },
+
+  // 青雲（真柏）- 2枚
+  {
+    id: "image_demo_shimpaku_01_001",
+    bonsaiId: "bonsai_demo_shimpaku_01",
+    imageUrl: "https://picsum.photos/seed/shimpaku01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/shimpaku01a/200/150",
+    caption: "懸崖仕立ての全景",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_shimpaku_01_002",
+    bonsaiId: "bonsai_demo_shimpaku_01",
+    imageUrl: "https://picsum.photos/seed/shimpaku01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/shimpaku01b/200/150",
+    caption: "ジンとシャリの詳細",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 紅炎（楓）- 2枚
+  {
+    id: "image_demo_kaede_01_001",
+    bonsaiId: "bonsai_demo_kaede_01",
+    imageUrl: "https://picsum.photos/seed/kaede01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kaede01a/200/150",
+    caption: "紅葉の様子",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_kaede_01_002",
+    bonsaiId: "bonsai_demo_kaede_01",
+    imageUrl: "https://picsum.photos/seed/kaede01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kaede01b/200/150",
+    caption: "枝ぶりの詳細",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 白峰（五葉松）- 2枚
+  {
+    id: "image_demo_goyo_01_001",
+    bonsaiId: "bonsai_demo_goyo_01",
+    imageUrl: "https://picsum.photos/seed/goyo01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/goyo01a/200/150",
+    caption: "文人木の全景",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_goyo_01_002",
+    bonsaiId: "bonsai_demo_goyo_01",
+    imageUrl: "https://picsum.photos/seed/goyo01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/goyo01b/200/150",
+    caption: "幹の線の美しさ",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 春霞（桜）- 2枚
+  {
+    id: "image_demo_sakura_01_001",
+    bonsaiId: "bonsai_demo_sakura_01",
+    imageUrl: "https://picsum.photos/seed/sakura01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/sakura01a/200/150",
+    caption: "満開の桜",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_sakura_01_002",
+    bonsaiId: "bonsai_demo_sakura_01",
+    imageUrl: "https://picsum.photos/seed/sakura01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/sakura01b/200/150",
+    caption: "新緑の姿",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 秋錦（楓）- 2枚
+  {
+    id: "image_demo_kaede_02_001",
+    bonsaiId: "bonsai_demo_kaede_02",
+    imageUrl: "https://picsum.photos/seed/kaede02a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kaede02a/200/150",
+    caption: "箒作りの樹形",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_kaede_02_002",
+    bonsaiId: "bonsai_demo_kaede_02",
+    imageUrl: "https://picsum.photos/seed/kaede02b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kaede02b/200/150",
+    caption: "秋の紅葉",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 紫雲（サツキ）- 2枚
+  {
+    id: "image_demo_azalea_01_001",
+    bonsaiId: "bonsai_demo_azalea_01",
+    imageUrl: "https://picsum.photos/seed/azalea01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/azalea01a/200/150",
+    caption: "開花時の姿",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_azalea_01_002",
+    bonsaiId: "bonsai_demo_azalea_01",
+    imageUrl: "https://picsum.photos/seed/azalea01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/azalea01b/200/150",
+    caption: "紫色の花のアップ",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 若葉（欅）- 1枚
+  {
+    id: "image_demo_keyaki_01_001",
+    bonsaiId: "bonsai_demo_keyaki_01",
+    imageUrl: "https://picsum.photos/seed/keyaki01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/keyaki01a/200/150",
+    caption: "若木の全景",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+
+  // 白梅（梅）- 2枚
+  {
+    id: "image_demo_ume_01_001",
+    bonsaiId: "bonsai_demo_ume_01",
+    imageUrl: "https://picsum.photos/seed/ume01a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/ume01a/200/150",
+    caption: "白梅の開花",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+  {
+    id: "image_demo_ume_01_002",
+    bonsaiId: "bonsai_demo_ume_01",
+    imageUrl: "https://picsum.photos/seed/ume01b/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/ume01b/200/150",
+    caption: "幹模様の詳細",
+    isPrimary: false,
+    sortOrder: 1,
+  },
+
+  // 初陣（黒松）- 1枚
+  {
+    id: "image_demo_kuromatsu_02_001",
+    bonsaiId: "bonsai_demo_kuromatsu_02",
+    imageUrl: "https://picsum.photos/seed/kuromatsu02a/800/600",
+    thumbnailUrl: "https://picsum.photos/seed/kuromatsu02a/200/150",
+    caption: "培養中の若松",
+    isPrimary: true,
+    sortOrder: 0,
+  },
+];
 
 // =============================================================================
 // Seed Functions
@@ -663,6 +867,28 @@ async function seedTestCareLogs(
   console.log(`  Upserted ${careLogsData.length} test care logs`);
 }
 
+async function seedTestBonsaiImages(
+  tx: Parameters<
+    Parameters<Awaited<ReturnType<typeof createDb>>["db"]["transaction"]>[0]
+  >[0]
+) {
+  console.log("Seeding test bonsai images...");
+  await tx
+    .insert(bonsaiImages)
+    .values(testBonsaiImagesData)
+    .onConflictDoUpdate({
+      target: bonsaiImages.id,
+      set: {
+        imageUrl: sql.raw(`excluded.${bonsaiImages.imageUrl.name}`),
+        thumbnailUrl: sql.raw(`excluded.${bonsaiImages.thumbnailUrl.name}`),
+        caption: sql.raw(`excluded.${bonsaiImages.caption.name}`),
+        isPrimary: sql.raw(`excluded.${bonsaiImages.isPrimary.name}`),
+        sortOrder: sql.raw(`excluded.${bonsaiImages.sortOrder.name}`),
+      },
+    });
+  console.log(`  Upserted ${testBonsaiImagesData.length} test bonsai images`);
+}
+
 // =============================================================================
 // Main Seed Function
 // =============================================================================
@@ -722,6 +948,7 @@ async function seed() {
         await seedTestUsers(tx);
         await seedTestBonsai(tx);
         await seedTestCareLogs(tx);
+        await seedTestBonsaiImages(tx);
       }
     });
 
@@ -731,6 +958,7 @@ async function seed() {
       console.log(`  - ${testUsersData.length} users`);
       console.log(`  - ${testBonsaiData.length} bonsai`);
       console.log(`  - ${generateTestCareLogsData().length} care logs`);
+      console.log(`  - ${testBonsaiImagesData.length} bonsai images`);
     }
   } catch (error) {
     console.error("Error seeding database:", error);

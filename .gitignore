@@ -32,3 +32,13 @@ CLAUDE.md
 
 # Serena MCP local memories
 .serena/
+
+# Local HTTPS certificates (generated with mkcert)
+certs/
+
+# Screenshot authentication state (contains session tokens)
+.screenshot-auth.json
+
+# Python cache
+__pycache__/
+*.pyc

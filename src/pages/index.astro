@@ -31,8 +31,9 @@ import { ArrowRight } from "lucide-react";
 const { user } = await getAuthData(Astro);
 
 // Fetch platform data (stats + showcase) with error handling
-let stats: PlatformStatsType = { bonsaiCount: 0, userCount: 0, imageCount: 0 };
-let showcaseBonsai: BonsaiShowcaseItem[] = [];
+// Use null to distinguish "not fetched" from "empty data"
+let stats: PlatformStatsType | null = null;
+let showcaseBonsai: BonsaiShowcaseItem[] | null = null;
 
 try {
   const db = await getDb(
@@ -121,7 +122,7 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
   </section>
 
   <!-- Bonsai Showcase Section (Visual First - moved up for better first view) -->
-  {showcaseBonsai.length > 0 && (
+  {showcaseBonsai && showcaseBonsai.length > 0 && (
     <section class="pt-6 pb-10 md:pt-8 md:pb-14" aria-labelledby="showcase-heading">
       <div class="container-app">
         <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
@@ -164,11 +165,13 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
   )}
 
   <!-- Stats Section (Social Proof - placed after showcase for trust building) -->
-  <PlatformStats
-    bonsaiCount={stats.bonsaiCount}
-    userCount={stats.userCount}
-    imageCount={stats.imageCount}
-  />
+  {stats && (
+    <PlatformStats
+      bonsaiCount={stats.bonsaiCount}
+      userCount={stats.userCount}
+      imageCount={stats.imageCount}
+    />
+  )}
 
   <!-- Features Section -->
   <section class="border-t border-border bg-muted/20 py-10 md:py-14">

@@ -13,13 +13,13 @@ const hasMkcertCerts =
   fs.existsSync("certs/localhost-key.pem");
 
 // HTTPS configuration for local development
-// Use mkcert certificates if available, otherwise use basic-ssl plugin
+// Use mkcert certificates if available, otherwise basic-ssl plugin handles it
 const httpsConfig = hasMkcertCerts
   ? {
       key: fs.readFileSync("certs/localhost-key.pem"),
       cert: fs.readFileSync("certs/localhost.pem"),
     }
-  : true; // 'true' enables basic-ssl plugin's self-signed cert
+  : undefined; // basic-ssl plugin will handle HTTPS when certs are unavailable
 
 // https://astro.build/config
 export default defineConfig({

@@ -63,21 +63,21 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
   title="盆栽帳 - Bonsai-Cho"
   description="盆栽コレクションを記録し、愛好家と共有しましょう。成長を記録し、仲間とつながり、盆栽の芸術を楽しめます。"
 >
-  <!-- Hero Section -->
-  <section class="relative overflow-hidden py-16 md:py-24">
+  <!-- Hero Section (Compact) -->
+  <section class="relative overflow-hidden py-10 md:py-14">
     <div class="container-app">
       <div class="mx-auto max-w-3xl text-center">
-        <h1 class="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+        <h1 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
           あなたの
           <span class="text-primary">盆栽</span>
           を記録しよう
         </h1>
-        <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
+        <p class="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
 
         <!-- CTA Buttons -->
-        <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           {user ? (
             <a href="/bonsai/new" class={buttonPrimaryStyles}>
               盆栽を登録する
@@ -96,22 +96,15 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
 
     <!-- Decorative background -->
     <div class="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      <div class="absolute left-1/2 top-0 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"></div>
+      <div class="absolute left-1/2 top-0 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"></div>
     </div>
   </section>
 
-  <!-- Stats Section -->
-  <PlatformStats
-    bonsaiCount={stats.bonsaiCount}
-    userCount={stats.userCount}
-    imageCount={stats.imageCount}
-  />
-
-  <!-- Bonsai Showcase Section -->
+  <!-- Bonsai Showcase Section (Visual First - moved up for better first view) -->
   {showcaseBonsai.length > 0 && (
-    <section class="py-16 md:py-20" aria-labelledby="showcase-heading">
+    <section class="py-10 md:py-14" aria-labelledby="showcase-heading">
       <div class="container-app">
-        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
           <div>
             <h2
               id="showcase-heading"
@@ -132,7 +125,7 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
           </a>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
           {showcaseBonsai.map((bonsai) => (
             <BonsaiCardStatic
               id={bonsai.id}
@@ -149,6 +142,13 @@ const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-b
       </div>
     </section>
   )}
+
+  <!-- Stats Section (Social Proof - placed after showcase for trust building) -->
+  <PlatformStats
+    bonsaiCount={stats.bonsaiCount}
+    userCount={stats.userCount}
+    imageCount={stats.imageCount}
+  />
 
   <!-- Features Section -->
   <section class="border-t border-border bg-muted/20 py-16 md:py-20">

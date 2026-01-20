@@ -1,0 +1,92 @@
+---
+/**
+ * PlatformStats - Platform statistics display component
+ *
+ * Features:
+ * - 3-column responsive layout (1 column on mobile)
+ * - Uses <dl> structure for accessibility
+ * - Hidden when all values are 0
+ * - Consistent design with wa-modern theme
+ */
+
+import { Camera, Leaf, Users } from "lucide-react";
+
+interface Props {
+  bonsaiCount: number;
+  userCount: number;
+  imageCount: number;
+}
+
+const { bonsaiCount, userCount, imageCount } = Astro.props;
+
+// Don't render if all values are 0
+const hasData = bonsaiCount > 0 || userCount > 0 || imageCount > 0;
+
+// Format number with locale
+const formatNumber = (n: number) => n.toLocaleString("ja-JP");
+
+// Stats configuration
+const stats = [
+  {
+    icon: Leaf,
+    value: bonsaiCount,
+    label: "登録盆栽",
+    ariaLabel: `登録盆栽数: ${bonsaiCount}本`,
+  },
+  {
+    icon: Users,
+    value: userCount,
+    label: "愛好家",
+    ariaLabel: `愛好家数: ${userCount}人`,
+  },
+  {
+    icon: Camera,
+    value: imageCount,
+    label: "投稿写真",
+    ariaLabel: `投稿写真数: ${imageCount}枚`,
+  },
+];
+---
+
+{hasData && (
+  <section class="py-12 md:py-16 bg-muted/20" aria-labelledby="stats-heading">
+    <div class="container-app">
+      <h2 id="stats-heading" class="sr-only">
+        盆栽帳の統計情報
+      </h2>
+
+      <dl class="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+        {stats.map((stat, index) => (
+          <div
+            class:list={[
+              "flex flex-col items-center text-center",
+              "py-4 sm:py-0",
+              // Divider for mobile (bottom border except last)
+              index < stats.length - 1 && "border-b sm:border-b-0 border-border/50",
+              // Divider for tablet/desktop (right border except last)
+              index < stats.length - 1 && "sm:border-r sm:border-border/50",
+            ]}
+          >
+            <div
+              class="flex items-center justify-center w-12 h-12 mb-3 rounded-full bg-primary/10 text-primary"
+              aria-hidden="true"
+            >
+              <stat.icon className="w-6 h-6" />
+            </div>
+
+            <dt class="order-2 mt-1 text-sm text-muted-foreground">
+              {stat.label}
+            </dt>
+
+            <dd
+              class="order-1 font-serif text-3xl md:text-4xl font-bold text-primary tabular-nums"
+              aria-label={stat.ariaLabel}
+            >
+              {formatNumber(stat.value)}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  </section>
+)}

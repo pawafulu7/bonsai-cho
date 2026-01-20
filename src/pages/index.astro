@@ -1,4 +1,13 @@
 ---
+/**
+ * Top Page - Landing page for Bonsai-Cho
+ *
+ * Features:
+ * - Hero section with primary/secondary CTAs
+ * - Platform statistics (bonsai count, users, images)
+ * - Public bonsai showcase (latest 6 items)
+ * - Feature introduction cards
+ */
 import AppLayout from "@/layouts/AppLayout.astro";
 import {
   Card,
@@ -7,14 +16,45 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getAuthData } from "@/lib/auth/server";
+import { getDb } from "@/lib/db/client";
+import {
+  getPublicStats,
+  getPublicBonsaiShowcase,
+  type PlatformStats as PlatformStatsType,
+  type BonsaiShowcaseItem,
+} from "@/lib/db/queries";
+import PlatformStats from "@/components/common/PlatformStats.astro";
+import BonsaiCardStatic from "@/components/bonsai/list/BonsaiCardStatic.astro";
+import { ArrowRight } from "lucide-react";
 
 // Get auth data to show appropriate CTA buttons
 const { user } = await getAuthData(Astro);
+
+// Fetch platform data (stats + showcase) with error handling
+let stats: PlatformStatsType = { bonsaiCount: 0, userCount: 0, imageCount: 0 };
+let showcaseBonsai: BonsaiShowcaseItem[] = [];
+
+try {
+  const db = await getDb(
+    import.meta.env.TURSO_DATABASE_URL,
+    import.meta.env.TURSO_AUTH_TOKEN
+  );
+
+  // Fetch in parallel for performance
+  [stats, showcaseBonsai] = await Promise.all([
+    getPublicStats(db),
+    getPublicBonsaiShowcase(db, 6),
+  ]);
+} catch (e) {
+  console.error("Failed to fetch top page data:", e);
+  // Fallback: empty data, sections will be hidden
+}
 
 // Button styles for Astro templates (avoid asChild issues with Radix Slot)
 const buttonBaseStyles =
   "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 text-base`;
+const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-background text-foreground shadow-sm hover:bg-primary/5 h-12 px-8 text-base`;
 ---
 
 <AppLayout
@@ -22,7 +62,7 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
   description="盆栽コレクションを記録し、愛好家と共有しましょう。成長を記録し、仲間とつながり、盆栽の芸術を楽しめます。"
 >
   <!-- Hero Section -->
-  <section class="relative overflow-hidden py-20 md:py-32">
+  <section class="relative overflow-hidden py-16 md:py-24">
     <div class="container-app">
       <div class="mx-auto max-w-3xl text-center">
         <h1 class="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
@@ -33,7 +73,9 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
         <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
-        <div class="mt-10">
+
+        <!-- CTA Buttons -->
+        <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
           {user ? (
             <a href="/bonsai/new" class={buttonPrimaryStyles}>
               盆栽を登録する
@@ -43,6 +85,9 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
               今すぐ始める
             </a>
           )}
+          <a href="/bonsai" class={buttonSecondaryStyles}>
+            盆栽を見てみる
+          </a>
         </div>
       </div>
     </div>
@@ -53,11 +98,61 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
     </div>
   </section>
 
+  <!-- Stats Section -->
+  <PlatformStats
+    bonsaiCount={stats.bonsaiCount}
+    userCount={stats.userCount}
+    imageCount={stats.imageCount}
+  />
+
+  <!-- Bonsai Showcase Section -->
+  {showcaseBonsai.length > 0 && (
+    <section class="py-16 md:py-20" aria-labelledby="showcase-heading">
+      <div class="container-app">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+          <div>
+            <h2
+              id="showcase-heading"
+              class="font-serif text-2xl md:text-3xl font-bold text-foreground"
+            >
+              みんなの盆栽
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              愛好家たちの美しい盆栽コレクション
+            </p>
+          </div>
+          <a
+            href="/bonsai"
+            class="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+          >
+            すべて見る
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          {showcaseBonsai.map((bonsai) => (
+            <BonsaiCardStatic
+              id={bonsai.id}
+              name={bonsai.name}
+              description={bonsai.description}
+              thumbnailUrl={bonsai.thumbnailUrl}
+              speciesNameJa={bonsai.speciesNameJa}
+              styleNameJa={bonsai.styleNameJa}
+              likeCount={bonsai.likeCount}
+              commentCount={bonsai.commentCount}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
   <!-- Features Section -->
-  <section class="border-t border-border bg-muted/20 py-20">
+  <section class="border-t border-border bg-muted/20 py-16 md:py-20">
     <div class="container-app">
       <div class="mx-auto max-w-2xl text-center">
-        <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h2 class="font-serif text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           盆栽管理に必要なすべてを
         </h2>
         <p class="mt-4 text-lg text-muted-foreground">
@@ -65,7 +160,7 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
         </p>
       </div>
 
-      <div class="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Feature 1 -->
         <Card className="border-border bg-card shadow-card">
           <CardHeader>

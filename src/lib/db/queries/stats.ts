@@ -13,6 +13,12 @@ import { notDeleted } from "../helpers";
 import * as schema from "../schema";
 
 /**
+ * Maximum number of items for showcase display
+ * Prevents large IN clause expansion in SQLite
+ */
+const MAX_SHOWCASE_LIMIT = 12;
+
+/**
  * Platform Statistics
  */
 export interface PlatformStats {
@@ -61,16 +67,15 @@ export async function getPublicStats(db: Database): Promise<PlatformStats> {
       .from(schema.bonsai)
       .where(and(notDeleted(schema.bonsai), eq(schema.bonsai.isPublic, true))),
 
-    // Count images of public bonsai
+    // Count images of public bonsai (using JOIN for consistent conditions)
     db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql<number>`count(${schema.bonsaiImages.id})` })
       .from(schema.bonsaiImages)
-      .where(
-        sql`${schema.bonsaiImages.bonsaiId} IN (
-        SELECT ${schema.bonsai.id} FROM ${schema.bonsai}
-        WHERE ${schema.bonsai.deletedAt} IS NULL AND ${schema.bonsai.isPublic} = 1
-      )`
-      ),
+      .innerJoin(
+        schema.bonsai,
+        eq(schema.bonsaiImages.bonsaiId, schema.bonsai.id)
+      )
+      .where(and(notDeleted(schema.bonsai), eq(schema.bonsai.isPublic, true))),
   ]);
 
   return {
@@ -97,6 +102,9 @@ export async function getPublicBonsaiShowcase(
   db: Database,
   limit: number
 ): Promise<BonsaiShowcaseItem[]> {
+  // Clamp limit to prevent large IN clause expansion
+  const safeLimit = Math.min(Math.max(1, limit), MAX_SHOWCASE_LIMIT);
+
   // Get public bonsai (latest first)
   const bonsaiList = await db
     .select({
@@ -111,7 +119,7 @@ export async function getPublicBonsaiShowcase(
     .from(schema.bonsai)
     .where(and(notDeleted(schema.bonsai), eq(schema.bonsai.isPublic, true)))
     .orderBy(desc(schema.bonsai.createdAt), desc(schema.bonsai.id))
-    .limit(limit);
+    .limit(safeLimit);
 
   if (bonsaiList.length === 0) {
     return [];

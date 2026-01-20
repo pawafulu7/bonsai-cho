@@ -46,7 +46,9 @@ try {
     getPublicBonsaiShowcase(db, 6),
   ]);
 } catch (e) {
-  console.error("Failed to fetch top page data:", e);
+  // Log only error message to avoid exposing sensitive connection info
+  const errorMessage = e instanceof Error ? e.message : "Unknown error";
+  console.error("Failed to fetch top page data:", errorMessage);
   // Fallback: empty data, sections will be hidden
 }
 

@@ -8,7 +8,7 @@ const envSchema = z.object({
   TURSO_AUTH_TOKEN: z.string().min(1, "TURSO_AUTH_TOKEN cannot be empty"),
 
   // App
-  PUBLIC_APP_URL: z.url().default("http://localhost:4321"),
+  PUBLIC_APP_URL: z.url().default("https://localhost:4321"),
 
   // OAuth (required for authentication)
   GITHUB_CLIENT_ID: z.string().min(1, "GITHUB_CLIENT_ID is required"),

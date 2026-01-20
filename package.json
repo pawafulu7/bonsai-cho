@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "packageManager": "pnpm@10.14.0",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 astro dev",
     "build": "NODE_ENV=production astro build",
     "preview": "astro preview",
     "astro": "astro",

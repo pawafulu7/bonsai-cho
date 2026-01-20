@@ -26,6 +26,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
@@ -89,24 +90,22 @@ def is_trusted_host(base_url: str) -> bool:
 def auth_setup(base_url: str) -> None:
     """Interactive login to save authentication state."""
     auth_state_path = get_auth_state_path()
+    session_cookie_name = "__Host-session"
 
     print("Starting authentication setup...")
     print(f"Base URL: {base_url}")
     print(f"Auth state will be saved to: {auth_state_path}")
     print()
-
-    # Only ignore HTTPS errors for trusted hosts (localhost, etc.)
+    # Check if we need to ignore HTTPS errors (for local development with self-signed certs)
     ignore_https = is_trusted_host(base_url)
     if ignore_https:
-        print("Note: HTTPS certificate verification disabled for trusted local host.")
-    else:
-        print("Warning: Using strict HTTPS verification for non-local host.")
+        print("Note: HTTPS certificate errors will be ignored for localhost")
     print()
 
     browser = None
     try:
         with sync_playwright() as p:
-            # Launch browser in headed mode for interactive login
+            # Launch Chromium in headed mode for interactive login
             browser = p.chromium.launch(headless=False)
             context = browser.new_context(
                 viewport={"width": 1280, "height": 900},
@@ -136,20 +135,44 @@ def auth_setup(base_url: str) -> None:
             print("=" * 60)
             print()
 
-            # Wait for successful login (redirected away from login page)
-            # Use polling instead of lambda (Playwright Python doesn't support functions)
-            start_time = page.evaluate("Date.now()")
-            timeout_ms = 300000  # 5 minutes
-            while True:
-                current_url = page.url
-                if "/login" not in current_url and "callback" not in current_url:
-                    break
-                elapsed = page.evaluate("Date.now()") - start_time
-                if elapsed > timeout_ms:
-                    raise TimeoutError("Login timed out after 5 minutes")
-                page.wait_for_timeout(500)
+            # Wait for successful login by checking:
+            # 1. URL is not login/callback/OAuth provider pages
+            # 2. Session cookie (__Host-session) is set
+            start_time = time.time()
+            timeout_sec = 300  # 5 minutes
+            print("Waiting for login...", flush=True)
 
-            # Give a moment for cookies to be set
+            while True:
+                try:
+                    current_url = page.url
+
+                    # Check if we're on a non-login page
+                    is_auth_page = any(x in current_url for x in [
+                        "/login", "/api/auth/callback", "github.com", "accounts.google"
+                    ])
+
+                    # Check for session cookie
+                    cookies = context.cookies()
+                    has_session = any(c["name"] == session_cookie_name for c in cookies)
+
+                    # Show status
+                    url_display = current_url[:60] + "..." if len(current_url) > 60 else current_url
+                    print(f"  URL: {url_display} | Cookie: {has_session}", flush=True)
+
+                    # Success: not on auth page AND has session cookie
+                    if not is_auth_page and has_session:
+                        print("  Login successful!", flush=True)
+                        break
+
+                except Exception as e:
+                    print(f"  Waiting... ({e})", flush=True)
+
+                elapsed = time.time() - start_time
+                if elapsed > timeout_sec:
+                    raise TimeoutError("Login timed out after 5 minutes")
+                time.sleep(1)
+
+            # Give a moment for all cookies to be set
             page.wait_for_timeout(2000)
 
             # Save storage state
@@ -168,15 +191,14 @@ def auth_setup(base_url: str) -> None:
             print()
             print("You can now use --auth to take authenticated screenshots.")
 
+            browser.close()
+
     except TimeoutError as e:
         print(f"Authentication timed out: {e}")
         sys.exit(1)
     except Exception as e:
         print(f"Authentication failed: {e}")
         sys.exit(1)
-    finally:
-        if browser:
-            browser.close()
 
 
 def take_screenshots(base_url: str, pages: list, use_auth: bool) -> None:
@@ -188,14 +210,12 @@ def take_screenshots(base_url: str, pages: list, use_auth: bool) -> None:
         print("Run with --auth-setup first to set up authentication.")
         sys.exit(1)
 
-    # Only ignore HTTPS errors for trusted hosts (localhost, etc.)
-    ignore_https = is_trusted_host(base_url)
-
     print(f"Taking screenshots (auth={'enabled' if use_auth else 'disabled'})...")
     print(f"Base URL: {base_url}")
-    if ignore_https and base_url.startswith("https"):
-        print("Note: HTTPS certificate verification disabled for trusted local host.")
     print()
+
+    # Check if we need to ignore HTTPS errors (for local development with self-signed certs)
+    ignore_https = is_trusted_host(base_url)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)

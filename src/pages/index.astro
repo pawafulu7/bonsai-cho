@@ -40,15 +40,35 @@ try {
     import.meta.env.TURSO_AUTH_TOKEN
   );
 
-  // Fetch in parallel for performance
-  [stats, showcaseBonsai] = await Promise.all([
+  // Fetch in parallel for performance (allow partial success)
+  const [statsResult, showcaseResult] = await Promise.allSettled([
     getPublicStats(db),
     getPublicBonsaiShowcase(db, 6),
   ]);
+
+  if (statsResult.status === "fulfilled") {
+    stats = statsResult.value;
+  } else {
+    const msg =
+      statsResult.reason instanceof Error
+        ? statsResult.reason.message
+        : "Unknown error";
+    console.error("Failed to fetch stats:", msg);
+  }
+
+  if (showcaseResult.status === "fulfilled") {
+    showcaseBonsai = showcaseResult.value;
+  } else {
+    const msg =
+      showcaseResult.reason instanceof Error
+        ? showcaseResult.reason.message
+        : "Unknown error";
+    console.error("Failed to fetch showcase:", msg);
+  }
 } catch (e) {
   // Log only error message to avoid exposing sensitive connection info
   const errorMessage = e instanceof Error ? e.message : "Unknown error";
-  console.error("Failed to fetch top page data:", errorMessage);
+  console.error("Failed to connect to database:", errorMessage);
   // Fallback: empty data, sections will be hidden
 }
 

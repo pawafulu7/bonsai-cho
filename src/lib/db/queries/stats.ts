@@ -6,7 +6,7 @@
  * to ensure consistent public data access conditions.
  */
 
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database } from "../client";
 import { notDeleted } from "../helpers";
@@ -136,12 +136,7 @@ export async function getPublicBonsaiShowcase(
     const speciesList = await db
       .select({ id: schema.species.id, nameJa: schema.species.nameJa })
       .from(schema.species)
-      .where(
-        sql`${schema.species.id} IN (${sql.join(
-          speciesIds.map((id) => sql`${id}`),
-          sql`, `
-        )})`
-      );
+      .where(inArray(schema.species.id, speciesIds));
     for (const s of speciesList) {
       speciesMap.set(s.id, s.nameJa);
     }
@@ -156,12 +151,7 @@ export async function getPublicBonsaiShowcase(
     const stylesList = await db
       .select({ id: schema.styles.id, nameJa: schema.styles.nameJa })
       .from(schema.styles)
-      .where(
-        sql`${schema.styles.id} IN (${sql.join(
-          styleIds.map((id) => sql`${id}`),
-          sql`, `
-        )})`
-      );
+      .where(inArray(schema.styles.id, styleIds));
     for (const s of stylesList) {
       styleMap.set(s.id, s.nameJa);
     }
@@ -177,10 +167,7 @@ export async function getPublicBonsaiShowcase(
     .from(schema.bonsaiImages)
     .where(
       and(
-        sql`${schema.bonsaiImages.bonsaiId} IN (${sql.join(
-          bonsaiIds.map((id) => sql`${id}`),
-          sql`, `
-        )})`,
+        inArray(schema.bonsaiImages.bonsaiId, bonsaiIds),
         eq(schema.bonsaiImages.isPrimary, true)
       )
     );

@@ -106,8 +106,12 @@ app.use(
   "/api/*",
   rateLimiter({
     skip: (c) => {
-      // Skip rate limiting for health checks and GET requests
-      if (c.req.method === "GET" || c.req.method === "OPTIONS") {
+      // Skip rate limiting for health checks and safe methods
+      if (
+        c.req.method === "GET" ||
+        c.req.method === "HEAD" ||
+        c.req.method === "OPTIONS"
+      ) {
         return true;
       }
       return false;

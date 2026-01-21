@@ -29,7 +29,10 @@ CREATE TABLE `__new_follows` (
 	CONSTRAINT "ck_follows_no_self_follow" CHECK("__new_follows"."follower_id" <> "__new_follows"."following_id")
 );
 --> statement-breakpoint
-INSERT INTO `__new_follows`("id", "follower_id", "following_id", "created_at") SELECT "id", "follower_id", "following_id", "created_at" FROM `follows`;--> statement-breakpoint
+INSERT INTO `__new_follows`("id", "follower_id", "following_id", "created_at")
+SELECT "id", "follower_id", "following_id", "created_at"
+FROM `follows`
+WHERE "follower_id" <> "following_id";--> statement-breakpoint
 DROP TABLE `follows`;--> statement-breakpoint
 ALTER TABLE `__new_follows` RENAME TO `follows`;--> statement-breakpoint
 PRAGMA foreign_keys=ON;--> statement-breakpoint

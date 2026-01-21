@@ -5,7 +5,7 @@
  * Cookie contains the raw token, DB stores SHA-256 hash.
  */
 
-import { and, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, or } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type * as schema from "../db/schema";
 import {
@@ -338,6 +338,21 @@ export async function changeUserStatus(
     .where(eq(users.id, targetUserId));
 
   // Record status change in history
+  // Hash IP address for privacy (only first 3 octets + hash suffix for traceability)
+  let ipAddressHash: string | null = null;
+  if (ipAddress) {
+    const hash = await sha256Hash(ipAddress);
+    // Store masked IP + hash prefix for traceability without full IP exposure
+    const parts = ipAddress.split(".");
+    if (parts.length === 4) {
+      // IPv4: mask last octet, add hash prefix
+      ipAddressHash = `${parts[0]}.${parts[1]}.${parts[2]}.xxx:${hash.substring(0, 8)}`;
+    } else {
+      // IPv6 or other: just store hash prefix
+      ipAddressHash = `hash:${hash.substring(0, 16)}`;
+    }
+  }
+
   await db.insert(userStatusHistory).values({
     id: generateId(),
     userId: targetUserId,
@@ -346,7 +361,7 @@ export async function changeUserStatus(
     reason: reason ?? null,
     changedBy: changedByUserId ?? null,
     changedAt: now,
-    ipAddress: ipAddress ?? null,
+    ipAddress: ipAddressHash,
   });
 
   // Invalidate all sessions when banning or suspending
@@ -458,20 +473,31 @@ export async function getUserStatusHistory(
     })
     .from(userStatusHistory)
     .where(eq(userStatusHistory.userId, userId))
-    .orderBy(userStatusHistory.changedAt)
+    .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
     .limit(fetchLimit);
 
   // If cursor is provided, we need to fetch items after that cursor
-  // For simplicity, we'll use offset-based approach with cursor being the last ID
+  // Uses composite cursor comparison for stability with same timestamps
   if (options.cursor) {
-    // Get the changedAt for the cursor item to use as reference
+    // Get the changedAt for the cursor item, validate it belongs to the same user
     const cursorItem = await db
-      .select({ changedAt: userStatusHistory.changedAt })
+      .select({
+        changedAt: userStatusHistory.changedAt,
+        id: userStatusHistory.id,
+      })
       .from(userStatusHistory)
-      .where(eq(userStatusHistory.id, options.cursor))
+      .where(
+        and(
+          eq(userStatusHistory.id, options.cursor),
+          eq(userStatusHistory.userId, userId) // Prevent cross-user cursor access
+        )
+      )
       .limit(1);
 
     if (cursorItem.length > 0) {
+      const cursorChangedAt = cursorItem[0].changedAt;
+      const cursorId = cursorItem[0].id;
+
       query = db
         .select({
           id: userStatusHistory.id,
@@ -486,10 +512,17 @@ export async function getUserStatusHistory(
         .where(
           and(
             eq(userStatusHistory.userId, userId),
-            gt(userStatusHistory.changedAt, cursorItem[0].changedAt)
+            // Composite comparison: (changedAt > cursor) OR (changedAt = cursor AND id > cursorId)
+            or(
+              gt(userStatusHistory.changedAt, cursorChangedAt),
+              and(
+                eq(userStatusHistory.changedAt, cursorChangedAt),
+                gt(userStatusHistory.id, cursorId)
+              )
+            )
           )
         )
-        .orderBy(userStatusHistory.changedAt)
+        .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
         .limit(fetchLimit);
     }
   }

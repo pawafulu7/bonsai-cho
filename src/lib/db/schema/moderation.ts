@@ -5,6 +5,9 @@ import { users } from "./users";
 /**
  * User status history table for audit logging.
  * Records all status changes (active, suspended, banned) for users.
+ *
+ * Privacy note: ipAddress stores masked/hashed values (e.g., "192.168.1.xxx:a1b2c3d4")
+ * rather than raw IP addresses. Full IP is never persisted.
  */
 export const userStatusHistory = sqliteTable(
   "user_status_history",
@@ -20,6 +23,7 @@ export const userStatusHistory = sqliteTable(
       onDelete: "set null",
     }),
     changedAt: text("changed_at").notNull().default(sql`(datetime('now'))`),
+    /** Stores masked IP + hash prefix for traceability (e.g., "192.168.1.xxx:a1b2c3d4") */
     ipAddress: text("ip_address"),
   },
   (table) => [

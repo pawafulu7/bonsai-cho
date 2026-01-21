@@ -14,6 +14,11 @@ export const users = sqliteTable(
     website: text("website"),
     followerCount: integer("follower_count").notNull().default(0),
     followingCount: integer("following_count").notNull().default(0),
+    // Account status for moderation: "active" | "suspended" | "banned"
+    status: text("status").notNull().default("active"),
+    statusReason: text("status_reason"),
+    statusChangedAt: text("status_changed_at"),
+    statusChangedBy: text("status_changed_by"),
     createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
     // Note: SQLite doesn't support auto-update timestamps.
     // Update paths must explicitly set updatedAt = new Date().toISOString()
@@ -24,6 +29,7 @@ export const users = sqliteTable(
     index("idx_users_name").on(table.name),
     index("idx_users_created_at").on(table.createdAt),
     index("idx_users_deleted_at").on(table.deletedAt),
+    index("idx_users_status").on(table.status),
   ]
 );
 

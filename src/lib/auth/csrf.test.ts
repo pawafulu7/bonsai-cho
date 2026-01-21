@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CSRF_COOKIE_NAME,
+  CSRF_COOKIE_OPTIONS,
   CSRF_FORM_FIELD,
   CSRF_HEADER_NAME,
   clearCsrfCookie,
@@ -16,6 +17,7 @@ import {
   parseCsrfCookie,
   validateCsrfToken,
 } from "./csrf";
+import { SESSION_COOKIE_OPTIONS } from "./session";
 
 describe("csrf", () => {
   describe("generateCsrfToken", () => {
@@ -176,7 +178,7 @@ describe("csrf", () => {
 
       expect(cookie).toContain(`${CSRF_COOKIE_NAME}=${token}`);
       expect(cookie).toContain("Path=/");
-      expect(cookie).toContain("Max-Age=86400"); // 24 hours
+      expect(cookie).toContain("Max-Age=1209600"); // 14 days
       expect(cookie.toLowerCase()).toContain("samesite=lax");
       expect(cookie).toContain("Secure");
     });
@@ -212,6 +214,17 @@ describe("csrf", () => {
 
     it("should have correct form field name", () => {
       expect(CSRF_FORM_FIELD).toBe("_csrf");
+    });
+  });
+
+  describe("cookie options consistency", () => {
+    it("should have same maxAge as session cookie", () => {
+      expect(CSRF_COOKIE_OPTIONS.maxAge).toBe(SESSION_COOKIE_OPTIONS.maxAge);
+    });
+
+    it("should have 14 days maxAge (same as session)", () => {
+      const FOURTEEN_DAYS_IN_SECONDS = 60 * 60 * 24 * 14;
+      expect(CSRF_COOKIE_OPTIONS.maxAge).toBe(FOURTEEN_DAYS_IN_SECONDS);
     });
   });
 });

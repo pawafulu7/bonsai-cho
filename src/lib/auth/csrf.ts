@@ -17,7 +17,7 @@ export const CSRF_COOKIE_OPTIONS = {
   secure: true,
   sameSite: "lax" as const,
   path: "/",
-  maxAge: 60 * 60 * 24, // 24 hours
+  maxAge: 60 * 60 * 24 * 14, // 14 days - same as session
 };
 
 /**

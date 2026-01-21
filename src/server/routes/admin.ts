@@ -12,31 +12,20 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
+import {
+  isProtectedAdmin,
+  validateAdminAuth,
+  validateAdminCsrf,
+} from "@/lib/auth/admin";
 import {
   banUser,
   getUserStatusHistory,
-  parseSessionCookie,
   suspendUser,
   unbanUser,
-  validateSession,
 } from "@/lib/auth/session";
 import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { getClientIp } from "../middleware/rate-limit";
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-/**
- * Temporary admin user IDs (hardcoded for Phase 1)
- * TODO: Replace with proper role-based access control in Phase 2
- */
-const ADMIN_USER_IDS: string[] = [
-  // Add admin user IDs here when needed
-  // Example: "user_abc123xyz"
-];
 
 // ============================================================================
 // Validation Schemas
@@ -67,6 +56,7 @@ type Bindings = {
   TURSO_AUTH_TOKEN: string;
   PUBLIC_APP_URL: string;
   SESSION_SECRET: string;
+  ADMIN_USER_IDS?: string;
 };
 
 type Variables = {
@@ -105,17 +95,6 @@ interface StatusHistoryResponse {
 }
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Check if a user ID is an admin
- */
-function isAdminUser(userId: string): boolean {
-  return ADMIN_USER_IDS.includes(userId);
-}
-
-// ============================================================================
 // Hono App
 // ============================================================================
 
@@ -135,31 +114,28 @@ admin.use("*", async (c, next) => {
 // Authentication middleware - requires admin privileges
 admin.use("*", async (c, next) => {
   const db = c.get("db");
-  const cookieHeader = c.req.header("Cookie") || "";
-  const sessionToken = parseSessionCookie(cookieHeader);
+  const cookieHeader = c.req.header("Cookie");
 
-  if (!sessionToken) {
-    return c.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
-  }
+  const authResult = await validateAdminAuth(
+    db,
+    cookieHeader,
+    c.env.ADMIN_USER_IDS
+  );
 
-  const result = await validateSession(db, sessionToken);
-  if (!result) {
-    return c.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
-  }
-
-  // Check admin privileges
-  if (!isAdminUser(result.user.id)) {
+  if (!authResult.success) {
     return c.json(
       {
-        error: "Forbidden",
-        code: "FORBIDDEN",
-        message: "Admin privileges required",
+        error: authResult.error,
+        code: authResult.code,
+        ...(authResult.code === "FORBIDDEN" && {
+          message: "Admin privileges required",
+        }),
       },
-      403
+      authResult.status
     );
   }
 
-  c.set("userId", result.user.id);
+  c.set("userId", authResult.userId);
   c.set("isAdmin", true);
   await next();
 });
@@ -171,15 +147,12 @@ admin.use("*", async (c, next) => {
     return next();
   }
 
-  const cookieHeader = c.req.header("Cookie") || "";
-  const csrfCookie = parseCsrfCookie(cookieHeader);
-  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  const cookieHeader = c.req.header("Cookie");
+  const csrfHeader = c.req.header("X-CSRF-Token");
 
-  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
-    return c.json(
-      { error: "Invalid CSRF token", code: "CSRF_VALIDATION_FAILED" },
-      403
-    );
+  const csrfError = validateAdminCsrf(cookieHeader, csrfHeader);
+  if (csrfError) {
+    return c.json(csrfError, 403);
   }
 
   return next();
@@ -223,7 +196,7 @@ admin.post("/users/:id/ban", async (c) => {
   }
 
   // Prevent banning other admins
-  if (isAdminUser(targetUserId)) {
+  if (isProtectedAdmin(targetUserId, c.env.ADMIN_USER_IDS)) {
     return c.json(
       {
         error: "Cannot ban another admin",
@@ -348,7 +321,7 @@ admin.post("/users/:id/suspend", async (c) => {
   }
 
   // Prevent suspending other admins
-  if (isAdminUser(targetUserId)) {
+  if (isProtectedAdmin(targetUserId, c.env.ADMIN_USER_IDS)) {
     return c.json(
       {
         error: "Cannot suspend another admin",

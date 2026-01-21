@@ -1,0 +1,17 @@
+---
+/**
+ * User Management Page
+ *
+ * Admin page for managing users with search, filtering, and moderation actions.
+ */
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { UserManagement } from "@/components/admin/UserManagement";
+import { getAdminAuthData } from "@/lib/auth/server";
+
+// Get admin auth data for CSRF token and current user
+const { user, csrfToken } = await getAdminAuthData(Astro);
+---
+
+<AdminLayout title="ユーザー管理 | 管理画面">
+  <UserManagement client:load currentUserId={user!.id} csrfToken={csrfToken} />
+</AdminLayout>

@@ -8,6 +8,7 @@ import { createClient } from "@libsql/client";
 import type { AstroGlobal } from "astro";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@/lib/db/schema";
+import { isAdminUser } from "./admin";
 import { parseCsrfCookie } from "./csrf";
 import {
   parseSessionCookie,
@@ -81,4 +82,38 @@ export async function getAuthData(astro: AstroGlobal): Promise<{
   const csrfToken = getCsrfToken(astro.request);
 
   return { user, csrfToken };
+}
+
+/**
+ * Get admin auth data for use in admin Astro components
+ *
+ * Returns user, isAdmin flag, and csrfToken
+ * If not authenticated or not admin, returns appropriate flags
+ *
+ * Usage in .astro files:
+ * ```astro
+ * ---
+ * import { getAdminAuthData } from "@/lib/auth/server";
+ * const { user, isAdmin, csrfToken } = await getAdminAuthData(Astro);
+ * if (!isAdmin) {
+ *   return Astro.redirect("/");
+ * }
+ * ---
+ * ```
+ */
+export async function getAdminAuthData(astro: AstroGlobal): Promise<{
+  user: SessionUser | null;
+  isAdmin: boolean;
+  csrfToken: string | null;
+}> {
+  const { user, csrfToken } = await getAuthData(astro);
+
+  if (!user) {
+    return { user: null, isAdmin: false, csrfToken };
+  }
+
+  const adminUserIdsEnv = import.meta.env.ADMIN_USER_IDS;
+  const isAdmin = isAdminUser(user.id, adminUserIdsEnv);
+
+  return { user, isAdmin, csrfToken };
 }

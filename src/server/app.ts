@@ -4,6 +4,8 @@ import { logger } from "hono/logger";
 import { timing } from "hono/timing";
 
 import type { R2BucketBinding } from "@/lib/storage/r2";
+import type { KVNamespace } from "./middleware/rate-limit";
+import { rateLimiter } from "./middleware/rate-limit";
 import authRoutes from "./routes/auth";
 import bonsaiRoutes from "./routes/bonsai";
 import careLogsRoutes from "./routes/care-logs";
@@ -30,6 +32,8 @@ type Bindings = {
   // R2 Storage
   R2_BUCKET: R2BucketBinding;
   R2_PUBLIC_URL?: string;
+  // KV for Rate Limiting
+  RATE_LIMIT_KV?: KVNamespace;
 };
 
 // biome-ignore lint/complexity/noBannedTypes: Hono requires this type signature for future variable additions
@@ -94,6 +98,21 @@ app.use("*", async (c, next) => {
 
   return corsMiddleware(c, next);
 });
+
+// Rate limiting middleware (after CORS, before routes)
+// Note: Rate limiting is skipped if KV is not available (local development)
+app.use(
+  "/api/*",
+  rateLimiter({
+    skip: (c) => {
+      // Skip rate limiting for health checks and GET requests
+      if (c.req.method === "GET" || c.req.method === "OPTIONS") {
+        return true;
+      }
+      return false;
+    },
+  })
+);
 
 // Health check endpoint
 app.get("/health", (c) => {

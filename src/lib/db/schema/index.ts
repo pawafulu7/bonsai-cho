@@ -27,6 +27,13 @@ export {
 } from "./bonsai";
 // Master Data
 export { species, styles } from "./masters";
+// Moderation
+export type {
+  NewUserStatusHistory,
+  UserStatus,
+  UserStatusHistoryRecord,
+} from "./moderation";
+export { userStatusHistory, userStatusHistoryRelations } from "./moderation";
 // Social Features (likes, comments, follows)
 export {
   comments,

@@ -2,6 +2,12 @@ name = "bonsai-cho"
 compatibility_date = "2026-01-12"
 pages_build_output_dir = "./dist"
 
+# KV Namespace for Rate Limiting
+# Note: For local development, KV is mocked. Create actual KV namespaces for production.
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "rate_limit_dev"
+
 # R2 Storage Binding
 [[r2_buckets]]
 binding = "R2_BUCKET"
@@ -13,6 +19,10 @@ preview_bucket_name = "bonsai-images-dev"
 [env.development.vars]
 PUBLIC_APP_URL = "http://localhost:4321"
 
+[[env.development.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "rate_limit_dev"
+
 [[env.development.r2_buckets]]
 binding = "R2_BUCKET"
 bucket_name = "bonsai-images-dev"
@@ -21,6 +31,10 @@ bucket_name = "bonsai-images-dev"
 [env.production]
 [env.production.vars]
 # Set via dashboard or wrangler secret
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "rate_limit_prod"
 
 [[env.production.r2_buckets]]
 binding = "R2_BUCKET"

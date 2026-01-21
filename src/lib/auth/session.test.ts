@@ -15,6 +15,29 @@ import {
   SESSION_COOKIE_OPTIONS,
 } from "./session";
 
+/**
+ * Creates a mock database with transaction support.
+ * The transaction callback receives the same mock methods.
+ */
+function createMockDbWithTransaction(mocks: {
+  select?: ReturnType<typeof vi.fn>;
+  update?: ReturnType<typeof vi.fn>;
+  insert?: ReturnType<typeof vi.fn>;
+  delete?: ReturnType<typeof vi.fn>;
+}) {
+  const txMock = {
+    select: mocks.select ?? vi.fn(),
+    update: mocks.update ?? vi.fn(),
+    insert: mocks.insert ?? vi.fn(),
+    delete: mocks.delete ?? vi.fn(),
+  };
+
+  return {
+    ...txMock,
+    transaction: vi.fn(async (callback) => callback(txMock)),
+  } as unknown as Database;
+}
+
 describe("session", () => {
   describe("parseSessionCookie", () => {
     it("should parse single session cookie", () => {
@@ -480,6 +503,435 @@ describe("session", () => {
         const result = await getUserSessions(mockDb, "user-with-no-sessions");
 
         expect(result).toEqual([]);
+      });
+    });
+
+    // ========================================================================
+    // User Status Management Tests
+    // ========================================================================
+
+    describe("changeUserStatus", () => {
+      it("should change user status and record history", async () => {
+        const { changeUserStatus } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "active" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+          }),
+        });
+
+        const insertMock = vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const deleteMock = vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+        });
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+          insert: insertMock,
+          delete: deleteMock,
+        });
+
+        const result = await changeUserStatus(mockDb, {
+          targetUserId: "user-123",
+          newStatus: "banned",
+          reason: "Spam",
+          changedByUserId: "admin-456",
+          ipAddress: "192.168.1.1",
+        });
+
+        expect(result.previousStatus).toBe("active");
+        expect(result.success).toBe(true);
+        expect(updateMock).toHaveBeenCalled();
+        expect(insertMock).toHaveBeenCalled();
+        // Sessions should be invalidated on ban
+        expect(deleteMock).toHaveBeenCalled();
+      });
+
+      it("should not update if status is same", async () => {
+        const { changeUserStatus } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "banned" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn();
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+        });
+
+        const result = await changeUserStatus(mockDb, {
+          targetUserId: "user-123",
+          newStatus: "banned",
+        });
+
+        expect(result.previousStatus).toBe("banned");
+        expect(result.success).toBe(true);
+        expect(updateMock).not.toHaveBeenCalled();
+      });
+
+      it("should return failure if user not found", async () => {
+        const { changeUserStatus } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        });
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+        });
+
+        const result = await changeUserStatus(mockDb, {
+          targetUserId: "nonexistent",
+          newStatus: "banned",
+        });
+
+        expect(result.success).toBe(false);
+      });
+    });
+
+    describe("banUser", () => {
+      it("should call changeUserStatus with banned status", async () => {
+        const { banUser } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "active" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+          }),
+        });
+
+        const insertMock = vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const deleteMock = vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+        });
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+          insert: insertMock,
+          delete: deleteMock,
+        });
+
+        const result = await banUser(mockDb, "user-123", "Spam", "admin-456");
+
+        expect(result.previousStatus).toBe("active");
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe("suspendUser", () => {
+      it("should call changeUserStatus with suspended status", async () => {
+        const { suspendUser } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "active" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+          }),
+        });
+
+        const insertMock = vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const deleteMock = vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+        });
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+          insert: insertMock,
+          delete: deleteMock,
+        });
+
+        const result = await suspendUser(
+          mockDb,
+          "user-123",
+          "Temporary issue",
+          "admin-456"
+        );
+
+        expect(result.previousStatus).toBe("active");
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe("unbanUser", () => {
+      it("should restore user to active status", async () => {
+        const { unbanUser } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "banned" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+          }),
+        });
+
+        const insertMock = vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+          insert: insertMock,
+        });
+
+        const result = await unbanUser(mockDb, "user-123", "Appeal accepted");
+
+        expect(result.previousStatus).toBe("banned");
+        expect(result.success).toBe(true);
+      });
+
+      it("should not invalidate sessions when unbanning", async () => {
+        const { unbanUser } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "suspended" }]),
+            }),
+          }),
+        });
+
+        const updateMock = vi.fn().mockReturnValue({
+          set: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
+          }),
+        });
+
+        const insertMock = vi.fn().mockReturnValue({
+          values: vi.fn().mockResolvedValue(undefined),
+        });
+
+        const deleteMock = vi.fn();
+
+        const mockDb = createMockDbWithTransaction({
+          select: selectMock,
+          update: updateMock,
+          insert: insertMock,
+          delete: deleteMock,
+        });
+
+        await unbanUser(mockDb, "user-123");
+
+        // Delete should NOT be called when unbanning
+        expect(deleteMock).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("getUserStatusHistory", () => {
+      it("should return status change history with pagination", async () => {
+        const { getUserStatusHistory } = await import("./session");
+
+        const mockHistory = [
+          {
+            id: "history-1",
+            previousStatus: "active",
+            newStatus: "banned",
+            reason: "Spam",
+            changedBy: "admin-123",
+            changedAt: "2024-01-01T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+          {
+            id: "history-2",
+            previousStatus: "banned",
+            newStatus: "active",
+            reason: "Appeal accepted",
+            changedBy: "admin-123",
+            changedAt: "2024-01-02T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+        ];
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue(mockHistory),
+              }),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatusHistory(mockDb, "user-123");
+
+        expect(result.items).toEqual(mockHistory);
+        expect(result.items.length).toBe(2);
+        expect(result.nextCursor).toBeNull();
+      });
+
+      it("should return empty items for user with no history", async () => {
+        const { getUserStatusHistory } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatusHistory(mockDb, "new-user");
+
+        expect(result.items).toEqual([]);
+        expect(result.nextCursor).toBeNull();
+      });
+
+      it("should return nextCursor when more items exist", async () => {
+        const { getUserStatusHistory } = await import("./session");
+
+        // Mock returns 3 items when limit is 2 (fetchLimit = limit + 1)
+        const mockHistory = [
+          {
+            id: "history-1",
+            previousStatus: "active",
+            newStatus: "banned",
+            reason: "Spam",
+            changedBy: "admin-123",
+            changedAt: "2024-01-01T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+          {
+            id: "history-2",
+            previousStatus: "banned",
+            newStatus: "active",
+            reason: "Appeal accepted",
+            changedBy: "admin-123",
+            changedAt: "2024-01-02T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+          {
+            id: "history-3",
+            previousStatus: "active",
+            newStatus: "suspended",
+            reason: "Violation",
+            changedBy: "admin-123",
+            changedAt: "2024-01-03T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+        ];
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue(mockHistory),
+              }),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatusHistory(mockDb, "user-123", {
+          limit: 2,
+        });
+
+        expect(result.items.length).toBe(2);
+        expect(result.nextCursor).toBe("history-2");
+      });
+    });
+
+    describe("getUserStatus", () => {
+      it("should return user status", async () => {
+        const { getUserStatus } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([{ status: "banned" }]),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatus(mockDb, "user-123");
+
+        expect(result).toBe("banned");
+      });
+
+      it("should return null for nonexistent user", async () => {
+        const { getUserStatus } = await import("./session");
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue([]),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatus(mockDb, "nonexistent");
+
+        expect(result).toBeNull();
       });
     });
   });

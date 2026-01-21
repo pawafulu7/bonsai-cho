@@ -344,6 +344,14 @@ auth.get("/callback/github", async (c) => {
       avatarUrl: githubUser.avatar_url,
     });
 
+    // Check if user is banned or suspended
+    if (user.status === "banned") {
+      return c.redirect("/login?error=account_banned");
+    }
+    if (user.status === "suspended") {
+      return c.redirect("/login?error=account_suspended");
+    }
+
     // Create session
     const { token } = await createSession(db, user.id);
 
@@ -475,6 +483,14 @@ auth.get("/callback/google", async (c) => {
       name: claims.name || claims.email.split("@")[0],
       avatarUrl: claims.picture,
     });
+
+    // Check if user is banned or suspended
+    if (user.status === "banned") {
+      return c.redirect("/login?error=account_banned");
+    }
+    if (user.status === "suspended") {
+      return c.redirect("/login?error=account_suspended");
+    }
 
     // Create session
     const { token } = await createSession(db, user.id);

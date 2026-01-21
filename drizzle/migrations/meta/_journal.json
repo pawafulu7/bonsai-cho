@@ -15,6 +15,20 @@
       "when": 1768522280092,
       "tag": "0001_steady_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1768988466089,
+      "tag": "0002_flaky_shard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1768993473789,
+      "tag": "0003_jittery_arclight",
+      "breakpoints": true
     }
   ]
 }

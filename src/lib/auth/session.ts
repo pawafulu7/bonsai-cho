@@ -5,11 +5,16 @@
  * Cookie contains the raw token, DB stores SHA-256 hash.
  */
 
-import { and, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, or } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type * as schema from "../db/schema";
-import { sessions, users } from "../db/schema";
-import { generateSessionId, sha256Hash } from "./crypto";
+import {
+  sessions,
+  type UserStatus,
+  userStatusHistory,
+  users,
+} from "../db/schema";
+import { generateId, generateSessionId, sha256Hash } from "./crypto";
 
 // Session configuration
 const SESSION_EXPIRES_DAYS = 14;
@@ -26,12 +31,20 @@ export const SESSION_COOKIE_OPTIONS = {
 
 export type Database = LibSQLDatabase<typeof schema>;
 
+/**
+ * Common interface for database operations that work in both
+ * regular context and transaction context.
+ * Used for functions that need to be called within transactions.
+ */
+type DbContext = Pick<Database, "delete">;
+
 export interface SessionUser {
   id: string;
   email: string;
   name: string;
   displayName: string | null;
   avatarUrl: string | null;
+  status: UserStatus;
 }
 
 export interface Session {
@@ -73,7 +86,7 @@ export async function createSession(
 /**
  * Validate a session token and return the associated user
  *
- * Returns null if the session is invalid or expired
+ * Returns null if the session is invalid, expired, or user is banned/suspended
  */
 export async function validateSession(
   db: Database,
@@ -91,6 +104,7 @@ export async function validateSession(
         name: users.name,
         displayName: users.displayName,
         avatarUrl: users.avatarUrl,
+        status: users.status,
       },
     })
     .from(sessions)
@@ -100,7 +114,9 @@ export async function validateSession(
         eq(sessions.id, hashedToken),
         gt(sessions.expiresAt, now),
         // Exclude soft-deleted users
-        isNull(users.deletedAt)
+        isNull(users.deletedAt),
+        // Only allow active users
+        eq(users.status, "active")
       )
     )
     .limit(1);
@@ -111,7 +127,7 @@ export async function validateSession(
 
   return {
     session: result[0].session,
-    user: result[0].user,
+    user: result[0].user as SessionUser,
   };
 }
 
@@ -129,12 +145,14 @@ export async function invalidateSession(
 /**
  * Invalidate all sessions for a user
  * Useful for "sign out everywhere" functionality
+ *
+ * @param dbOrTx - Database instance or transaction context
  */
 export async function invalidateAllUserSessions(
-  db: Database,
+  dbOrTx: DbContext,
   userId: string
 ): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.userId, userId));
+  await dbOrTx.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 /**
@@ -267,4 +285,297 @@ export function createSessionCookie(token: string): string {
  */
 export function clearSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=${SESSION_COOKIE_OPTIONS.sameSite}`;
+}
+
+// ============================================================================
+// User Status Management (Ban/Suspend/Unban)
+// ============================================================================
+
+/**
+ * Options for changing user status
+ */
+export interface ChangeUserStatusOptions {
+  targetUserId: string;
+  newStatus: UserStatus;
+  reason?: string;
+  changedByUserId?: string;
+  ipAddress?: string;
+}
+
+/**
+ * Change a user's status and record the change in history.
+ * Also invalidates all sessions when banning or suspending.
+ *
+ * All operations are wrapped in a transaction to ensure atomicity.
+ *
+ * @returns The previous status of the user
+ */
+export async function changeUserStatus(
+  db: Database,
+  options: ChangeUserStatusOptions
+): Promise<{ previousStatus: UserStatus; success: boolean }> {
+  const { targetUserId, newStatus, reason, changedByUserId, ipAddress } =
+    options;
+  const now = new Date().toISOString();
+
+  // Pre-compute IP hash outside transaction to avoid async issues
+  let ipAddressHash: string | null = null;
+  if (ipAddress) {
+    const hash = await sha256Hash(ipAddress);
+    // Store masked IP + hash prefix for traceability without full IP exposure
+    const parts = ipAddress.split(".");
+    if (parts.length === 4) {
+      // IPv4: mask last octet, add hash prefix
+      ipAddressHash = `${parts[0]}.${parts[1]}.${parts[2]}.xxx:${hash.substring(0, 8)}`;
+    } else {
+      // IPv6 or other: just store hash prefix
+      ipAddressHash = `hash:${hash.substring(0, 16)}`;
+    }
+  }
+
+  // Wrap all database operations in a transaction for atomicity
+  return db.transaction(async (tx) => {
+    // Get current user status
+    const currentUser = await tx
+      .select({ status: users.status })
+      .from(users)
+      .where(eq(users.id, targetUserId))
+      .limit(1);
+
+    if (currentUser.length === 0) {
+      return { previousStatus: "active" as UserStatus, success: false };
+    }
+
+    const previousStatus = currentUser[0].status as UserStatus;
+
+    // Don't update if status is the same
+    if (previousStatus === newStatus) {
+      return { previousStatus, success: true };
+    }
+
+    // Update user status
+    await tx
+      .update(users)
+      .set({
+        status: newStatus,
+        statusReason: reason ?? null,
+        statusChangedAt: now,
+        statusChangedBy: changedByUserId ?? null,
+        updatedAt: now,
+      })
+      .where(eq(users.id, targetUserId));
+
+    // Record status change in history
+    await tx.insert(userStatusHistory).values({
+      id: generateId(),
+      userId: targetUserId,
+      previousStatus,
+      newStatus,
+      reason: reason ?? null,
+      changedBy: changedByUserId ?? null,
+      changedAt: now,
+      ipAddress: ipAddressHash,
+    });
+
+    // Invalidate all sessions when banning or suspending
+    if (newStatus === "banned" || newStatus === "suspended") {
+      await invalidateAllUserSessions(tx, targetUserId);
+    }
+
+    return { previousStatus, success: true };
+  });
+}
+
+/**
+ * Ban a user - permanently restricts access
+ * Invalidates all active sessions immediately.
+ */
+export async function banUser(
+  db: Database,
+  targetUserId: string,
+  reason?: string,
+  changedByUserId?: string,
+  ipAddress?: string
+): Promise<{ previousStatus: UserStatus; success: boolean }> {
+  return changeUserStatus(db, {
+    targetUserId,
+    newStatus: "banned",
+    reason,
+    changedByUserId,
+    ipAddress,
+  });
+}
+
+/**
+ * Suspend a user - temporarily restricts access
+ * Invalidates all active sessions immediately.
+ */
+export async function suspendUser(
+  db: Database,
+  targetUserId: string,
+  reason?: string,
+  changedByUserId?: string,
+  ipAddress?: string
+): Promise<{ previousStatus: UserStatus; success: boolean }> {
+  return changeUserStatus(db, {
+    targetUserId,
+    newStatus: "suspended",
+    reason,
+    changedByUserId,
+    ipAddress,
+  });
+}
+
+/**
+ * Unban/unsuspend a user - restores access
+ */
+export async function unbanUser(
+  db: Database,
+  targetUserId: string,
+  reason?: string,
+  changedByUserId?: string,
+  ipAddress?: string
+): Promise<{ previousStatus: UserStatus; success: boolean }> {
+  return changeUserStatus(db, {
+    targetUserId,
+    newStatus: "active",
+    reason,
+    changedByUserId,
+    ipAddress,
+  });
+}
+
+/**
+ * Options for paginated status history
+ */
+export interface GetStatusHistoryOptions {
+  limit?: number; // Max 100, default 50
+  cursor?: string; // ID of the last item from the previous page
+}
+
+/** Maximum allowed limit for status history pagination */
+const MAX_STATUS_HISTORY_LIMIT = 100;
+
+/**
+ * Get a user's status change history with pagination
+ */
+export async function getUserStatusHistory(
+  db: Database,
+  userId: string,
+  options: GetStatusHistoryOptions = {}
+): Promise<{
+  items: Array<{
+    id: string;
+    previousStatus: string;
+    newStatus: string;
+    reason: string | null;
+    changedBy: string | null;
+    changedAt: string;
+    ipAddress: string | null;
+  }>;
+  nextCursor: string | null;
+}> {
+  // Clamp limit: minimum 1, maximum MAX_STATUS_HISTORY_LIMIT, default 50
+  const rawLimit = options.limit ?? 50;
+  const limit = Math.max(1, Math.min(rawLimit, MAX_STATUS_HISTORY_LIMIT));
+  const fetchLimit = limit + 1; // Fetch one extra to determine if there's more
+
+  let query = db
+    .select({
+      id: userStatusHistory.id,
+      previousStatus: userStatusHistory.previousStatus,
+      newStatus: userStatusHistory.newStatus,
+      reason: userStatusHistory.reason,
+      changedBy: userStatusHistory.changedBy,
+      changedAt: userStatusHistory.changedAt,
+      ipAddress: userStatusHistory.ipAddress,
+    })
+    .from(userStatusHistory)
+    .where(eq(userStatusHistory.userId, userId))
+    .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
+    .limit(fetchLimit);
+
+  // If cursor is provided, we need to fetch items after that cursor
+  // Uses composite cursor comparison for stability with same timestamps
+  if (options.cursor) {
+    // Get the changedAt for the cursor item, validate it belongs to the same user
+    const cursorItem = await db
+      .select({
+        changedAt: userStatusHistory.changedAt,
+        id: userStatusHistory.id,
+      })
+      .from(userStatusHistory)
+      .where(
+        and(
+          eq(userStatusHistory.id, options.cursor),
+          eq(userStatusHistory.userId, userId) // Prevent cross-user cursor access
+        )
+      )
+      .limit(1);
+
+    // Invalid cursor: return empty result to prevent infinite loops
+    if (cursorItem.length === 0) {
+      return { items: [], nextCursor: null };
+    }
+
+    const cursorChangedAt = cursorItem[0].changedAt;
+    const cursorId = cursorItem[0].id;
+
+    query = db
+      .select({
+        id: userStatusHistory.id,
+        previousStatus: userStatusHistory.previousStatus,
+        newStatus: userStatusHistory.newStatus,
+        reason: userStatusHistory.reason,
+        changedBy: userStatusHistory.changedBy,
+        changedAt: userStatusHistory.changedAt,
+        ipAddress: userStatusHistory.ipAddress,
+      })
+      .from(userStatusHistory)
+      .where(
+        and(
+          eq(userStatusHistory.userId, userId),
+          // Composite comparison: (changedAt > cursor) OR (changedAt = cursor AND id > cursorId)
+          or(
+            gt(userStatusHistory.changedAt, cursorChangedAt),
+            and(
+              eq(userStatusHistory.changedAt, cursorChangedAt),
+              gt(userStatusHistory.id, cursorId)
+            )
+          )
+        )
+      )
+      .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
+      .limit(fetchLimit);
+  }
+
+  const result = await query;
+
+  // Check if there are more items
+  const hasMore = result.length > limit;
+  const items = hasMore ? result.slice(0, limit) : result;
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+  return { items, nextCursor };
+}
+
+/**
+ * Check if a user is banned or suspended (without validating session)
+ * Useful for pre-login checks or admin views
+ */
+export async function getUserStatus(
+  db: Database,
+  userId: string
+): Promise<UserStatus | null> {
+  const result = await db
+    .select({ status: users.status })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (result.length === 0) {
+    return null;
+  }
+
+  return result[0].status as UserStatus;
 }

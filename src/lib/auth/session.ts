@@ -138,12 +138,14 @@ export async function invalidateSession(
 /**
  * Invalidate all sessions for a user
  * Useful for "sign out everywhere" functionality
+ *
+ * @param dbOrTx - Database instance or transaction context
  */
 export async function invalidateAllUserSessions(
-  db: Database,
+  dbOrTx: Database,
   userId: string
 ): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.userId, userId));
+  await dbOrTx.delete(sessions).where(eq(sessions.userId, userId));
 }
 
 /**
@@ -297,6 +299,8 @@ export interface ChangeUserStatusOptions {
  * Change a user's status and record the change in history.
  * Also invalidates all sessions when banning or suspending.
  *
+ * All operations are wrapped in a transaction to ensure atomicity.
+ *
  * @returns The previous status of the user
  */
 export async function changeUserStatus(
@@ -307,38 +311,7 @@ export async function changeUserStatus(
     options;
   const now = new Date().toISOString();
 
-  // Get current user status
-  const currentUser = await db
-    .select({ status: users.status })
-    .from(users)
-    .where(eq(users.id, targetUserId))
-    .limit(1);
-
-  if (currentUser.length === 0) {
-    return { previousStatus: "active", success: false };
-  }
-
-  const previousStatus = currentUser[0].status as UserStatus;
-
-  // Don't update if status is the same
-  if (previousStatus === newStatus) {
-    return { previousStatus, success: true };
-  }
-
-  // Update user status
-  await db
-    .update(users)
-    .set({
-      status: newStatus,
-      statusReason: reason ?? null,
-      statusChangedAt: now,
-      statusChangedBy: changedByUserId ?? null,
-      updatedAt: now,
-    })
-    .where(eq(users.id, targetUserId));
-
-  // Record status change in history
-  // Hash IP address for privacy (only first 3 octets + hash suffix for traceability)
+  // Pre-compute IP hash outside transaction to avoid async issues
   let ipAddressHash: string | null = null;
   if (ipAddress) {
     const hash = await sha256Hash(ipAddress);
@@ -353,23 +326,57 @@ export async function changeUserStatus(
     }
   }
 
-  await db.insert(userStatusHistory).values({
-    id: generateId(),
-    userId: targetUserId,
-    previousStatus,
-    newStatus,
-    reason: reason ?? null,
-    changedBy: changedByUserId ?? null,
-    changedAt: now,
-    ipAddress: ipAddressHash,
+  // Wrap all database operations in a transaction for atomicity
+  return db.transaction(async (tx) => {
+    // Get current user status
+    const currentUser = await tx
+      .select({ status: users.status })
+      .from(users)
+      .where(eq(users.id, targetUserId))
+      .limit(1);
+
+    if (currentUser.length === 0) {
+      return { previousStatus: "active" as UserStatus, success: false };
+    }
+
+    const previousStatus = currentUser[0].status as UserStatus;
+
+    // Don't update if status is the same
+    if (previousStatus === newStatus) {
+      return { previousStatus, success: true };
+    }
+
+    // Update user status
+    await tx
+      .update(users)
+      .set({
+        status: newStatus,
+        statusReason: reason ?? null,
+        statusChangedAt: now,
+        statusChangedBy: changedByUserId ?? null,
+        updatedAt: now,
+      })
+      .where(eq(users.id, targetUserId));
+
+    // Record status change in history
+    await tx.insert(userStatusHistory).values({
+      id: generateId(),
+      userId: targetUserId,
+      previousStatus,
+      newStatus,
+      reason: reason ?? null,
+      changedBy: changedByUserId ?? null,
+      changedAt: now,
+      ipAddress: ipAddressHash,
+    });
+
+    // Invalidate all sessions when banning or suspending
+    if (newStatus === "banned" || newStatus === "suspended") {
+      await invalidateAllUserSessions(tx, targetUserId);
+    }
+
+    return { previousStatus, success: true };
   });
-
-  // Invalidate all sessions when banning or suspending
-  if (newStatus === "banned" || newStatus === "suspended") {
-    await invalidateAllUserSessions(db, targetUserId);
-  }
-
-  return { previousStatus, success: true };
 }
 
 /**
@@ -435,9 +442,12 @@ export async function unbanUser(
  * Options for paginated status history
  */
 export interface GetStatusHistoryOptions {
-  limit?: number;
+  limit?: number; // Max 100, default 50
   cursor?: string; // ID of the last item from the previous page
 }
+
+/** Maximum allowed limit for status history pagination */
+const MAX_STATUS_HISTORY_LIMIT = 100;
 
 /**
  * Get a user's status change history with pagination
@@ -458,7 +468,8 @@ export async function getUserStatusHistory(
   }>;
   nextCursor: string | null;
 }> {
-  const limit = options.limit ?? 50; // Default to 50 items
+  // Cap limit at MAX_STATUS_HISTORY_LIMIT to prevent excessive data retrieval
+  const limit = Math.min(options.limit ?? 50, MAX_STATUS_HISTORY_LIMIT);
   const fetchLimit = limit + 1; // Fetch one extra to determine if there's more
 
   let query = db

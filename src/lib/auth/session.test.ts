@@ -15,6 +15,29 @@ import {
   SESSION_COOKIE_OPTIONS,
 } from "./session";
 
+/**
+ * Creates a mock database with transaction support.
+ * The transaction callback receives the same mock methods.
+ */
+function createMockDbWithTransaction(mocks: {
+  select?: ReturnType<typeof vi.fn>;
+  update?: ReturnType<typeof vi.fn>;
+  insert?: ReturnType<typeof vi.fn>;
+  delete?: ReturnType<typeof vi.fn>;
+}) {
+  const txMock = {
+    select: mocks.select ?? vi.fn(),
+    update: mocks.update ?? vi.fn(),
+    insert: mocks.insert ?? vi.fn(),
+    delete: mocks.delete ?? vi.fn(),
+  };
+
+  return {
+    ...txMock,
+    transaction: vi.fn(async (callback) => callback(txMock)),
+  } as unknown as Database;
+}
+
 describe("session", () => {
   describe("parseSessionCookie", () => {
     it("should parse single session cookie", () => {
@@ -513,12 +536,12 @@ describe("session", () => {
           where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
         });
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
           insert: insertMock,
           delete: deleteMock,
-        } as unknown as Database;
+        });
 
         const result = await changeUserStatus(mockDb, {
           targetUserId: "user-123",
@@ -549,10 +572,10 @@ describe("session", () => {
 
         const updateMock = vi.fn();
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
-        } as unknown as Database;
+        });
 
         const result = await changeUserStatus(mockDb, {
           targetUserId: "user-123",
@@ -575,9 +598,9 @@ describe("session", () => {
           }),
         });
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
-        } as unknown as Database;
+        });
 
         const result = await changeUserStatus(mockDb, {
           targetUserId: "nonexistent",
@@ -614,12 +637,12 @@ describe("session", () => {
           where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
         });
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
           insert: insertMock,
           delete: deleteMock,
-        } as unknown as Database;
+        });
 
         const result = await banUser(mockDb, "user-123", "Spam", "admin-456");
 
@@ -654,12 +677,12 @@ describe("session", () => {
           where: vi.fn().mockResolvedValue({ rowsAffected: 1 }),
         });
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
           insert: insertMock,
           delete: deleteMock,
-        } as unknown as Database;
+        });
 
         const result = await suspendUser(
           mockDb,
@@ -695,11 +718,11 @@ describe("session", () => {
           values: vi.fn().mockResolvedValue(undefined),
         });
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
           insert: insertMock,
-        } as unknown as Database;
+        });
 
         const result = await unbanUser(mockDb, "user-123", "Appeal accepted");
 
@@ -730,12 +753,12 @@ describe("session", () => {
 
         const deleteMock = vi.fn();
 
-        const mockDb = {
+        const mockDb = createMockDbWithTransaction({
           select: selectMock,
           update: updateMock,
           insert: insertMock,
           delete: deleteMock,
-        } as unknown as Database;
+        });
 
         await unbanUser(mockDb, "user-123");
 

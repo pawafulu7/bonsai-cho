@@ -27,7 +27,12 @@ export const userStatusHistory = sqliteTable(
     ipAddress: text("ip_address"),
   },
   (table) => [
-    index("idx_user_status_history_user_id").on(table.userId),
+    // Composite index for efficient pagination queries (userId + changedAt + id)
+    index("idx_user_status_history_user_changed").on(
+      table.userId,
+      table.changedAt,
+      table.id
+    ),
     index("idx_user_status_history_changed_at").on(table.changedAt),
   ]
 );

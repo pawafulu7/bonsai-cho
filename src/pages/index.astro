@@ -1,4 +1,13 @@
 ---
+/**
+ * Top Page - Landing page for Bonsai-Cho
+ *
+ * Features:
+ * - Hero section with primary/secondary CTAs
+ * - Platform statistics (bonsai count, users, images)
+ * - Public bonsai showcase (latest 6 items)
+ * - Feature introduction cards
+ */
 import AppLayout from "@/layouts/AppLayout.astro";
 import {
   Card,
@@ -7,33 +16,89 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getAuthData } from "@/lib/auth/server";
+import { getDb } from "@/lib/db/client";
+import {
+  getPublicStats,
+  getPublicBonsaiShowcase,
+  type PlatformStats as PlatformStatsType,
+  type BonsaiShowcaseItem,
+} from "@/lib/db/queries";
+import PlatformStats from "@/components/common/PlatformStats.astro";
+import BonsaiCardStatic from "@/components/bonsai/list/BonsaiCardStatic.astro";
+import { ArrowRight } from "lucide-react";
 
 // Get auth data to show appropriate CTA buttons
 const { user } = await getAuthData(Astro);
+
+// Fetch platform data (stats + showcase) with error handling
+// Use null to distinguish "not fetched" from "empty data"
+let stats: PlatformStatsType | null = null;
+let showcaseBonsai: BonsaiShowcaseItem[] | null = null;
+
+try {
+  const db = await getDb(
+    import.meta.env.TURSO_DATABASE_URL,
+    import.meta.env.TURSO_AUTH_TOKEN
+  );
+
+  // Fetch in parallel for performance (allow partial success)
+  const [statsResult, showcaseResult] = await Promise.allSettled([
+    getPublicStats(db),
+    getPublicBonsaiShowcase(db, 6),
+  ]);
+
+  if (statsResult.status === "fulfilled") {
+    stats = statsResult.value;
+  } else {
+    const msg =
+      statsResult.reason instanceof Error
+        ? statsResult.reason.message
+        : "Unknown error";
+    console.error("Failed to fetch stats:", msg);
+  }
+
+  if (showcaseResult.status === "fulfilled") {
+    showcaseBonsai = showcaseResult.value;
+  } else {
+    const msg =
+      showcaseResult.reason instanceof Error
+        ? showcaseResult.reason.message
+        : "Unknown error";
+    console.error("Failed to fetch showcase:", msg);
+  }
+} catch (e) {
+  // Log only error message to avoid exposing sensitive connection info
+  const errorMessage = e instanceof Error ? e.message : "Unknown error";
+  console.error("Failed to connect to database:", errorMessage);
+  // Fallback: empty data, sections will be hidden
+}
 
 // Button styles for Astro templates (avoid asChild issues with Radix Slot)
 const buttonBaseStyles =
   "cursor-pointer inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foreground shadow hover:bg-primary/90 h-12 px-8 text-base`;
+const buttonSecondaryStyles = `${buttonBaseStyles} border border-primary/40 bg-background text-foreground shadow-sm hover:bg-primary/5 h-12 px-8 text-base`;
 ---
 
 <AppLayout
   title="盆栽帳 - Bonsai-Cho"
   description="盆栽コレクションを記録し、愛好家と共有しましょう。成長を記録し、仲間とつながり、盆栽の芸術を楽しめます。"
 >
-  <!-- Hero Section -->
-  <section class="relative overflow-hidden py-20 md:py-32">
+  <!-- Hero Section (Compact) -->
+  <section class="relative overflow-hidden pt-10 pb-6 md:pt-14 md:pb-8">
     <div class="container-app">
       <div class="mx-auto max-w-3xl text-center">
-        <h1 class="font-serif text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
+        <h1 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
           あなたの
           <span class="text-primary">盆栽</span>
           を記録しよう
         </h1>
-        <p class="mt-6 text-lg leading-8 text-muted-foreground md:text-xl">
+        <p class="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
           盆栽の成長を記録し、写真を共有し、盆栽を愛する仲間とつながりましょう。
         </p>
-        <div class="mt-10">
+
+        <!-- CTA Buttons -->
+        <div class="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           {user ? (
             <a href="/bonsai/new" class={buttonPrimaryStyles}>
               盆栽を登録する
@@ -43,21 +108,76 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
               今すぐ始める
             </a>
           )}
+          <a href="/bonsai" class={buttonSecondaryStyles}>
+            盆栽を見てみる
+          </a>
         </div>
       </div>
     </div>
 
     <!-- Decorative background -->
     <div class="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
-      <div class="absolute left-1/2 top-0 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"></div>
+      <div class="absolute left-1/2 top-0 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"></div>
     </div>
   </section>
 
+  <!-- Bonsai Showcase Section (Visual First - moved up for better first view) -->
+  {showcaseBonsai && showcaseBonsai.length > 0 && (
+    <section class="pt-6 pb-10 md:pt-8 md:pb-14" aria-labelledby="showcase-heading">
+      <div class="container-app">
+        <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+          <div>
+            <h2
+              id="showcase-heading"
+              class="font-serif text-2xl md:text-3xl font-bold text-foreground"
+            >
+              みんなの盆栽
+            </h2>
+            <p class="mt-2 text-muted-foreground">
+              愛好家たちの美しい盆栽コレクション
+            </p>
+          </div>
+          <a
+            href="/bonsai"
+            class="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+          >
+            すべて見る
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+          {showcaseBonsai.map((bonsai) => (
+            <BonsaiCardStatic
+              id={bonsai.id}
+              name={bonsai.name}
+              description={bonsai.description}
+              thumbnailUrl={bonsai.thumbnailUrl}
+              speciesNameJa={bonsai.speciesNameJa}
+              styleNameJa={bonsai.styleNameJa}
+              likeCount={bonsai.likeCount}
+              commentCount={bonsai.commentCount}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  <!-- Stats Section (Social Proof - placed after showcase for trust building) -->
+  {stats && (
+    <PlatformStats
+      bonsaiCount={stats.bonsaiCount}
+      userCount={stats.userCount}
+      imageCount={stats.imageCount}
+    />
+  )}
+
   <!-- Features Section -->
-  <section class="border-t border-border bg-muted/20 py-20">
+  <section class="border-t border-border bg-muted/20 py-10 md:py-14">
     <div class="container-app">
       <div class="mx-auto max-w-2xl text-center">
-        <h2 class="font-serif text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+        <h2 class="font-serif text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           盆栽管理に必要なすべてを
         </h2>
         <p class="mt-4 text-lg text-muted-foreground">
@@ -65,7 +185,7 @@ const buttonPrimaryStyles = `${buttonBaseStyles} bg-primary text-primary-foregro
         </p>
       </div>
 
-      <div class="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
         <!-- Feature 1 -->
         <Card className="border-border bg-card shadow-card">
           <CardHeader>

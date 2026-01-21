@@ -11,14 +11,14 @@ Usage:
 Options:
     --auth-setup    Interactive login to save authentication state
     --auth          Use saved authentication state for screenshots
-    --base-url URL  Base URL (default: https://localhost:4321 with --auth, http://localhost:4321 without)
+    --base-url URL  Base URL (default: https://localhost:4321)
 
 Examples:
-    python scripts/screenshot.py                          # Unauthenticated (HTTP)
+    python scripts/screenshot.py                          # Unauthenticated (HTTPS)
     python scripts/screenshot.py --auth-setup             # Setup authentication
     python scripts/screenshot.py --auth                   # Authenticated (all auth pages)
     python scripts/screenshot.py --auth /bonsai/new       # Authenticated (specific page)
-    python scripts/screenshot.py /                        # Top page only (HTTP)
+    python scripts/screenshot.py /                        # Top page only (HTTPS)
 """
 
 import argparse
@@ -32,8 +32,7 @@ from urllib.parse import urlparse
 from playwright.sync_api import sync_playwright
 
 # Default configuration
-DEFAULT_BASE_URL_HTTP = "http://localhost:4321"
-DEFAULT_BASE_URL_HTTPS = "https://localhost:4321"
+DEFAULT_BASE_URL = "https://localhost:4321"
 OUTPUT_DIR = tempfile.gettempdir()
 AUTH_STATE_FILE = ".screenshot-auth.json"
 
@@ -252,11 +251,11 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-    %(prog)s                          # Unauthenticated (HTTP)
+    %(prog)s                          # Unauthenticated (HTTPS)
     %(prog)s --auth-setup             # Setup authentication
     %(prog)s --auth                   # Authenticated (all auth pages)
     %(prog)s --auth /bonsai/new       # Authenticated (specific page)
-    %(prog)s /                        # Top page only (HTTP)
+    %(prog)s /                        # Top page only (HTTPS)
 """,
     )
 
@@ -273,7 +272,7 @@ Examples:
     parser.add_argument(
         "--base-url",
         type=str,
-        help=f"Base URL (default: {DEFAULT_BASE_URL_HTTPS} with --auth, {DEFAULT_BASE_URL_HTTP} without)",
+        help=f"Base URL (default: {DEFAULT_BASE_URL})",
     )
     parser.add_argument(
         "pages",
@@ -284,12 +283,7 @@ Examples:
     args = parser.parse_args()
 
     # Determine base URL
-    if args.base_url:
-        base_url = args.base_url
-    elif args.auth or args.auth_setup:
-        base_url = DEFAULT_BASE_URL_HTTPS
-    else:
-        base_url = DEFAULT_BASE_URL_HTTP
+    base_url = args.base_url or DEFAULT_BASE_URL
 
     # Handle auth setup mode
     if args.auth_setup:

@@ -31,6 +31,13 @@ export const SESSION_COOKIE_OPTIONS = {
 
 export type Database = LibSQLDatabase<typeof schema>;
 
+/**
+ * Common interface for database operations that work in both
+ * regular context and transaction context.
+ * Used for functions that need to be called within transactions.
+ */
+type DbContext = Pick<Database, "delete">;
+
 export interface SessionUser {
   id: string;
   email: string;
@@ -142,7 +149,7 @@ export async function invalidateSession(
  * @param dbOrTx - Database instance or transaction context
  */
 export async function invalidateAllUserSessions(
-  dbOrTx: Database,
+  dbOrTx: DbContext,
   userId: string
 ): Promise<void> {
   await dbOrTx.delete(sessions).where(eq(sessions.userId, userId));

@@ -28,9 +28,14 @@ export function SettingsPage({ csrfToken }: SettingsPageProps) {
 
       {/* Tabs */}
       <div className="border-b border-border">
-        <nav className="-mb-px flex gap-4">
+        <div className="-mb-px flex gap-4" role="tablist" aria-label="設定タブ">
           <button
             type="button"
+            role="tab"
+            id="settings-tab"
+            aria-selected={activeTab === "settings"}
+            aria-controls="settings-panel"
+            tabIndex={activeTab === "settings" ? 0 : -1}
             onClick={() => setActiveTab("settings")}
             className={`border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
               activeTab === "settings"
@@ -42,6 +47,11 @@ export function SettingsPage({ csrfToken }: SettingsPageProps) {
           </button>
           <button
             type="button"
+            role="tab"
+            id="audit-tab"
+            aria-selected={activeTab === "audit"}
+            aria-controls="audit-panel"
+            tabIndex={activeTab === "audit" ? 0 : -1}
             onClick={() => setActiveTab("audit")}
             className={`border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
               activeTab === "audit"
@@ -51,12 +61,26 @@ export function SettingsPage({ csrfToken }: SettingsPageProps) {
           >
             監査ログ
           </button>
-        </nav>
+        </div>
       </div>
 
       {/* Tab Content */}
-      {activeTab === "settings" && <SettingsForm csrfToken={csrfToken} />}
-      {activeTab === "audit" && <AuditLogList />}
+      <div
+        role="tabpanel"
+        id="settings-panel"
+        aria-labelledby="settings-tab"
+        hidden={activeTab !== "settings"}
+      >
+        {activeTab === "settings" && <SettingsForm csrfToken={csrfToken} />}
+      </div>
+      <div
+        role="tabpanel"
+        id="audit-panel"
+        aria-labelledby="audit-tab"
+        hidden={activeTab !== "audit"}
+      >
+        {activeTab === "audit" && <AuditLogList />}
+      </div>
     </div>
   );
 }

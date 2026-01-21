@@ -5,14 +5,14 @@
  */
 
 import { History, Settings, Shield, User } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface AuditLogItem {
   id: string;
-  actorId: string;
+  actorId: string | null;
   actorName: string | null;
   actorIp: string | null;
   action: string;
@@ -65,38 +65,54 @@ export function AuditLogList() {
   const [offset, setOffset] = useState(0);
   const limit = 20;
 
-  const fetchLogs = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(
-        `/api/admin/settings/audit-logs?limit=${limit}&offset=${offset}`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "監査ログの取得に失敗しました");
-      }
-
-      const data = await res.json();
-      setLogs(data.data);
-      setTotal(data.total);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "データの取得に失敗しました"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [offset]);
-
   useEffect(() => {
+    const controller = new AbortController();
+
+    async function fetchLogs() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const res = await fetch(
+          `/api/admin/settings/audit-logs?limit=${limit}&offset=${offset}`,
+          {
+            credentials: "include",
+            signal: controller.signal,
+          }
+        );
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(
+            (errorData as { error?: string }).error ||
+              "監査ログの取得に失敗しました"
+          );
+        }
+
+        const data = await res.json();
+        setLogs(data.data);
+        setTotal(data.total);
+      } catch (err) {
+        // Skip state updates if the request was aborted
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
+        setError(
+          err instanceof Error ? err.message : "データの取得に失敗しました"
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
     fetchLogs();
-  }, [fetchLogs]);
+
+    return () => {
+      controller.abort();
+    };
+  }, [offset]);
 
   if (isLoading) {
     return (

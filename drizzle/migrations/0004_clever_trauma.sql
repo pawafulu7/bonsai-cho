@@ -1,13 +1,13 @@
 CREATE TABLE `audit_logs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`actor_id` text NOT NULL,
+	`actor_id` text,
 	`actor_ip` text,
 	`action` text NOT NULL,
 	`target_type` text,
 	`target_id` text,
 	`details` text,
 	`created_at` text DEFAULT (datetime('now')) NOT NULL,
-	FOREIGN KEY (`actor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`actor_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `idx_audit_logs_actor` ON `audit_logs` (`actor_id`);--> statement-breakpoint

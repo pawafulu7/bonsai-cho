@@ -192,6 +192,9 @@ export function SettingsForm({ csrfToken }: SettingsFormProps) {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
+                      id={`setting-${setting.key}`}
+                      role="switch"
+                      aria-checked={currentValue === "true"}
                       onClick={() =>
                         handleValueChange(
                           setting.key,

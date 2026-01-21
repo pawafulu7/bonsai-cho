@@ -34,8 +34,20 @@ const activityColors = {
 
 function formatRelativeTime(dateString: string): string {
   const date = new Date(dateString);
+
+  // Handle invalid dates
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
+
+  // Handle future dates (clock skew, timezone issues)
+  if (diffMs < 0) {
+    return "たった今";
+  }
+
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);

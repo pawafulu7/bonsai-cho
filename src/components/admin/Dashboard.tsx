@@ -65,6 +65,8 @@ export function Dashboard({ csrfToken: _csrfToken }: DashboardProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     async function fetchData() {
       setIsLoading(true);
       setError(null);
@@ -73,21 +75,27 @@ export function Dashboard({ csrfToken: _csrfToken }: DashboardProps) {
         const [statsRes, activityRes] = await Promise.all([
           fetch("/api/admin/stats", {
             credentials: "include",
+            signal: controller.signal,
           }),
           fetch("/api/admin/activity?limit=10", {
             credentials: "include",
+            signal: controller.signal,
           }),
         ]);
 
         if (!statsRes.ok) {
-          const errorData = await statsRes.json();
-          throw new Error(errorData.error || "統計情報の取得に失敗しました");
+          const errorData = await statsRes.json().catch(() => ({}));
+          throw new Error(
+            (errorData as { error?: string }).error ||
+              "統計情報の取得に失敗しました"
+          );
         }
 
         if (!activityRes.ok) {
-          const errorData = await activityRes.json();
+          const errorData = await activityRes.json().catch(() => ({}));
           throw new Error(
-            errorData.error || "アクティビティの取得に失敗しました"
+            (errorData as { error?: string }).error ||
+              "アクティビティの取得に失敗しました"
           );
         }
 
@@ -97,15 +105,26 @@ export function Dashboard({ csrfToken: _csrfToken }: DashboardProps) {
         setStats(statsData.data);
         setActivities(activityData.data);
       } catch (err) {
+        // Skip state updates if the request was aborted
+        if (err instanceof Error && err.name === "AbortError") {
+          return;
+        }
         setError(
           err instanceof Error ? err.message : "データの取得に失敗しました"
         );
       } finally {
-        setIsLoading(false);
+        // Only update loading state if not aborted
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+        }
       }
     }
 
     fetchData();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   if (isLoading) {

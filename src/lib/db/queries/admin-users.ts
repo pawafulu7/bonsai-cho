@@ -4,7 +4,7 @@
  * Provides user listing and search functionality for admin dashboard.
  */
 
-import { and, count, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, count, eq, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 
@@ -57,14 +57,17 @@ export async function getAdminUserList(
   options: AdminUserListOptions = {}
 ): Promise<AdminUserListResult> {
   const {
-    page = 1,
-    limit = 20,
+    page: rawPage = 1,
+    limit: rawLimit = 20,
     search,
     status,
     sortBy = "createdAt",
     sortOrder = "desc",
   } = options;
 
+  // Validate and normalize pagination parameters to prevent zero division and negative offsets
+  const page = Math.max(1, rawPage);
+  const limit = Math.max(1, Math.min(rawLimit, 100));
   const offset = (page - 1) * limit;
 
   // Build where conditions
@@ -76,12 +79,13 @@ export async function getAdminUserList(
 
   if (search) {
     const escapedSearch = escapeLikePattern(search);
-    const searchPattern = `%${escapedSearch}%`;
+    const searchPattern = `%${escapedSearch.toLowerCase()}%`;
+    // Use raw SQL with ESCAPE clause for proper escaping of LIKE wildcards
     conditions.push(
       or(
-        ilike(schema.users.name, searchPattern),
-        ilike(schema.users.email, searchPattern),
-        ilike(schema.users.displayName, searchPattern)
+        sql`LOWER(${schema.users.name}) LIKE ${searchPattern} ESCAPE '\\'`,
+        sql`LOWER(${schema.users.email}) LIKE ${searchPattern} ESCAPE '\\'`,
+        sql`LOWER(${schema.users.displayName}) LIKE ${searchPattern} ESCAPE '\\'`
       ) as (typeof conditions)[0]
     );
   }

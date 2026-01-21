@@ -5,7 +5,7 @@
  */
 
 import { Ban, MoreHorizontal, RefreshCw, ShieldOff, User } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,20 @@ export function UserTable({
   isLoading,
 }: UserTableProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Handle Escape key to close dropdown menu
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [openMenuId]);
 
   const toggleMenu = (userId: string) => {
     setOpenMenuId(openMenuId === userId ? null : userId);

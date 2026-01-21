@@ -66,9 +66,17 @@ const adminUsers = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // Database middleware
 adminUsers.use("*", async (c, next) => {
-  const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
-  c.set("db", db);
-  await next();
+  try {
+    const db = await getDb(c.env.TURSO_DATABASE_URL, c.env.TURSO_AUTH_TOKEN);
+    c.set("db", db);
+    await next();
+  } catch (error) {
+    console.error("Database connection error:", error);
+    return c.json(
+      { error: "Database connection failed", code: "INTERNAL_ERROR" },
+      500
+    );
+  }
 });
 
 // Authentication middleware - requires admin privileges

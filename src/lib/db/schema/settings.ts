@@ -47,10 +47,10 @@ export const auditLogs = sqliteTable(
   "audit_logs",
   {
     id: text("id").primaryKey(),
-    // Actor information
-    actorId: text("actor_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    // Actor information (nullable to preserve logs when user is deleted)
+    actorId: text("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     actorIp: text("actor_ip"),
     // Action details
     action: text("action", {

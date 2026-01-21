@@ -111,6 +111,8 @@ export async function getSetting(
 
 /**
  * Update a setting value
+ *
+ * Uses transaction to ensure atomic read-modify-write and audit log creation.
  */
 export async function updateSetting(
   db: Database,
@@ -119,43 +121,55 @@ export async function updateSetting(
   adminUserId: string,
   ipAddress: string | null
 ): Promise<{ success: boolean; previousValue: string | null }> {
-  const previousValue = await getSetting(db, key);
   const now = new Date().toISOString();
 
-  // Upsert the setting
-  await db
-    .insert(schema.systemSettings)
-    .values({
-      key,
-      value,
-      description: DEFAULT_SETTINGS[key as SettingKey]?.description || null,
-      updatedAt: now,
-      updatedBy: adminUserId,
-    })
-    .onConflictDoUpdate({
-      target: schema.systemSettings.key,
-      set: {
+  // Use transaction to ensure atomic operation
+  return await db.transaction(async (tx) => {
+    // Read previous value within transaction to prevent TOCTOU issues
+    const [existing] = await tx
+      .select({ value: schema.systemSettings.value })
+      .from(schema.systemSettings)
+      .where(eq(schema.systemSettings.key, key))
+      .limit(1);
+
+    const previousValue =
+      existing?.value ?? DEFAULT_SETTINGS[key as SettingKey]?.value ?? null;
+
+    // Upsert the setting
+    await tx
+      .insert(schema.systemSettings)
+      .values({
+        key,
         value,
+        description: DEFAULT_SETTINGS[key as SettingKey]?.description || null,
         updatedAt: now,
         updatedBy: adminUserId,
-      },
+      })
+      .onConflictDoUpdate({
+        target: schema.systemSettings.key,
+        set: {
+          value,
+          updatedAt: now,
+          updatedBy: adminUserId,
+        },
+      });
+
+    // Create audit log
+    await tx.insert(schema.auditLogs).values({
+      id: generateId(),
+      actorId: adminUserId,
+      actorIp: ipAddress,
+      action: "settings.update",
+      targetType: "setting",
+      targetId: key,
+      details: JSON.stringify({
+        previousValue,
+        newValue: value,
+      }),
     });
 
-  // Create audit log
-  await db.insert(schema.auditLogs).values({
-    id: generateId(),
-    actorId: adminUserId,
-    actorIp: ipAddress,
-    action: "settings.update",
-    targetType: "setting",
-    targetId: key,
-    details: JSON.stringify({
-      previousValue,
-      newValue: value,
-    }),
+    return { success: true, previousValue };
   });
-
-  return { success: true, previousValue };
 }
 
 /**
@@ -176,7 +190,7 @@ export async function isMaintenanceModeEnabled(db: Database): Promise<boolean> {
 
 export interface AuditLogItem {
   id: string;
-  actorId: string;
+  actorId: string | null;
   actorName: string | null;
   actorIp: string | null;
   action: string;

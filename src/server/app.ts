@@ -6,6 +6,7 @@ import { timing } from "hono/timing";
 import type { R2BucketBinding } from "@/lib/storage/r2";
 import type { KVNamespace } from "./middleware/rate-limit";
 import { rateLimiter } from "./middleware/rate-limit";
+import adminRoutes from "./routes/admin";
 import authRoutes from "./routes/auth";
 import bonsaiRoutes from "./routes/bonsai";
 import careLogsRoutes from "./routes/care-logs";
@@ -152,6 +153,9 @@ api.route("/users", followsRoutes);
 
 // User profile routes
 api.route("/users", usersRoutes);
+
+// Admin routes (moderation)
+api.route("/admin", adminRoutes);
 
 // 404 handler
 app.notFound((c) => {

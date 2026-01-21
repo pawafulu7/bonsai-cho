@@ -218,11 +218,16 @@ export async function checkRateLimit(
   let state: RateLimitState;
 
   if (stateJson) {
-    state = JSON.parse(stateJson);
+    try {
+      state = JSON.parse(stateJson);
 
-    // Check if we're in a new window
-    if (now >= state.windowStart + config.windowSeconds) {
-      // Start a new window
+      // Check if we're in a new window
+      if (now >= state.windowStart + config.windowSeconds) {
+        // Start a new window
+        state = { count: 0, windowStart: now };
+      }
+    } catch {
+      // Corrupted state, start fresh
       state = { count: 0, windowStart: now };
     }
   } else {

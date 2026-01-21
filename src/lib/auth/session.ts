@@ -475,8 +475,9 @@ export async function getUserStatusHistory(
   }>;
   nextCursor: string | null;
 }> {
-  // Cap limit at MAX_STATUS_HISTORY_LIMIT to prevent excessive data retrieval
-  const limit = Math.min(options.limit ?? 50, MAX_STATUS_HISTORY_LIMIT);
+  // Clamp limit: minimum 1, maximum MAX_STATUS_HISTORY_LIMIT, default 50
+  const rawLimit = options.limit ?? 50;
+  const limit = Math.max(1, Math.min(rawLimit, MAX_STATUS_HISTORY_LIMIT));
   const fetchLimit = limit + 1; // Fetch one extra to determine if there's more
 
   let query = db
@@ -512,37 +513,40 @@ export async function getUserStatusHistory(
       )
       .limit(1);
 
-    if (cursorItem.length > 0) {
-      const cursorChangedAt = cursorItem[0].changedAt;
-      const cursorId = cursorItem[0].id;
+    // Invalid cursor: return empty result to prevent infinite loops
+    if (cursorItem.length === 0) {
+      return { items: [], nextCursor: null };
+    }
 
-      query = db
-        .select({
-          id: userStatusHistory.id,
-          previousStatus: userStatusHistory.previousStatus,
-          newStatus: userStatusHistory.newStatus,
-          reason: userStatusHistory.reason,
-          changedBy: userStatusHistory.changedBy,
-          changedAt: userStatusHistory.changedAt,
-          ipAddress: userStatusHistory.ipAddress,
-        })
-        .from(userStatusHistory)
-        .where(
-          and(
-            eq(userStatusHistory.userId, userId),
-            // Composite comparison: (changedAt > cursor) OR (changedAt = cursor AND id > cursorId)
-            or(
-              gt(userStatusHistory.changedAt, cursorChangedAt),
-              and(
-                eq(userStatusHistory.changedAt, cursorChangedAt),
-                gt(userStatusHistory.id, cursorId)
-              )
+    const cursorChangedAt = cursorItem[0].changedAt;
+    const cursorId = cursorItem[0].id;
+
+    query = db
+      .select({
+        id: userStatusHistory.id,
+        previousStatus: userStatusHistory.previousStatus,
+        newStatus: userStatusHistory.newStatus,
+        reason: userStatusHistory.reason,
+        changedBy: userStatusHistory.changedBy,
+        changedAt: userStatusHistory.changedAt,
+        ipAddress: userStatusHistory.ipAddress,
+      })
+      .from(userStatusHistory)
+      .where(
+        and(
+          eq(userStatusHistory.userId, userId),
+          // Composite comparison: (changedAt > cursor) OR (changedAt = cursor AND id > cursorId)
+          or(
+            gt(userStatusHistory.changedAt, cursorChangedAt),
+            and(
+              eq(userStatusHistory.changedAt, cursorChangedAt),
+              gt(userStatusHistory.id, cursorId)
             )
           )
         )
-        .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
-        .limit(fetchLimit);
-    }
+      )
+      .orderBy(userStatusHistory.changedAt, userStatusHistory.id)
+      .limit(fetchLimit);
   }
 
   const result = await query;

@@ -15,7 +15,11 @@ import type { Context, MiddlewareHandler, Next } from "hono";
  */
 export interface KVNamespace {
   get(key: string): Promise<string | null>;
-  put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
+  put(
+    key: string,
+    value: string,
+    options?: { expirationTtl?: number }
+  ): Promise<void>;
   delete(key: string): Promise<void>;
 }
 
@@ -69,17 +73,45 @@ export const DEFAULT_RATE_LIMIT_RULES: RateLimitRule[] = [
     pattern: "/api/bonsai/*/images",
     config: { maxRequests: 20, windowSeconds: 3600, keyPrefix: "img" },
   },
+  // Image deletion
+  {
+    method: "DELETE",
+    pattern: "/api/bonsai/*/images/*",
+    config: { maxRequests: 50, windowSeconds: 3600, keyPrefix: "img-del" },
+  },
   // Bonsai creation
   {
     method: "POST",
     pattern: "/api/bonsai",
     config: { maxRequests: 30, windowSeconds: 3600, keyPrefix: "bonsai" },
   },
+  // Bonsai update
+  {
+    method: "PATCH",
+    pattern: "/api/bonsai/*",
+    config: {
+      maxRequests: 60,
+      windowSeconds: 3600,
+      keyPrefix: "bonsai-update",
+    },
+  },
+  // Bonsai deletion
+  {
+    method: "DELETE",
+    pattern: "/api/bonsai/*",
+    config: { maxRequests: 30, windowSeconds: 3600, keyPrefix: "bonsai-del" },
+  },
   // Comments
   {
     method: "POST",
     pattern: "/api/bonsai/*/comments",
     config: { maxRequests: 60, windowSeconds: 3600, keyPrefix: "comment" },
+  },
+  // Comment deletion
+  {
+    method: "DELETE",
+    pattern: "/api/bonsai/*/comments/*",
+    config: { maxRequests: 60, windowSeconds: 3600, keyPrefix: "comment-del" },
   },
   // Likes - high volume allowed
   {
@@ -92,26 +124,43 @@ export const DEFAULT_RATE_LIMIT_RULES: RateLimitRule[] = [
     pattern: "/api/bonsai/*/likes",
     config: { maxRequests: 200, windowSeconds: 3600, keyPrefix: "unlike" },
   },
-  // Admin operations - strict limits
+  // Follows
   {
     method: "POST",
-    pattern: "/api/admin/*",
+    pattern: "/api/users/*/follow",
+    config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "follow" },
+  },
+  {
+    method: "DELETE",
+    pattern: "/api/users/*/follow",
+    config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "unfollow" },
+  },
+  // User profile update
+  {
+    method: "PATCH",
+    pattern: "/api/users/*",
+    config: { maxRequests: 30, windowSeconds: 3600, keyPrefix: "user-update" },
+  },
+  // Admin operations - strict limits (supports nested paths like /users/:id/ban)
+  {
+    method: "POST",
+    pattern: "/api/admin/**",
     config: { maxRequests: 30, windowSeconds: 3600, keyPrefix: "admin" },
   },
-  // Default for other mutations
+  // Default for other mutations (** matches nested paths)
   {
     method: "POST",
-    pattern: "/api/*",
+    pattern: "/api/**",
     config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "post" },
   },
   {
     method: "PATCH",
-    pattern: "/api/*",
+    pattern: "/api/**",
     config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "patch" },
   },
   {
     method: "DELETE",
-    pattern: "/api/*",
+    pattern: "/api/**",
     config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "delete" },
   },
 ];
@@ -119,13 +168,17 @@ export const DEFAULT_RATE_LIMIT_RULES: RateLimitRule[] = [
 /**
  * Check if a path matches a pattern with wildcards
  *
- * Supports * for single path segment and ** for multiple segments
+ * Supports:
+ * - * for single path segment (e.g., /api/* matches /api/users but not /api/users/123)
+ * - ** for multiple segments (e.g., /api/** matches /api/users, /api/users/123, etc.)
  */
 export function matchPath(pattern: string, path: string): boolean {
   // Convert pattern to regex
+  // Order matters: replace ** first, then *
   const regexPattern = pattern
+    .replace(/\*\*/g, "__DOUBLE_STAR__") // Placeholder for **
     .replace(/\*/g, "[^/]+") // * matches single segment
-    .replace(/\[^\/\]\+\[^\/\]\+/g, ".*"); // ** matches multiple segments
+    .replace(/__DOUBLE_STAR__/g, ".*"); // ** matches multiple segments
 
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(path);
@@ -299,7 +352,7 @@ export function rateLimiter(options: RateLimitOptions = {}): MiddlewareHandler {
 
   return async (c: Context, next: Next) => {
     // Check if rate limiting should be skipped
-    if (skip && skip(c)) {
+    if (skip?.(c)) {
       return next();
     }
 

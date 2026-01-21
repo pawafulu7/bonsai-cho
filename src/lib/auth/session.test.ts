@@ -745,7 +745,7 @@ describe("session", () => {
     });
 
     describe("getUserStatusHistory", () => {
-      it("should return status change history", async () => {
+      it("should return status change history with pagination", async () => {
         const { getUserStatusHistory } = await import("./session");
 
         const mockHistory = [
@@ -772,7 +772,9 @@ describe("session", () => {
         const selectMock = vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockResolvedValue(mockHistory),
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue(mockHistory),
+              }),
             }),
           }),
         });
@@ -783,17 +785,20 @@ describe("session", () => {
 
         const result = await getUserStatusHistory(mockDb, "user-123");
 
-        expect(result).toEqual(mockHistory);
-        expect(result.length).toBe(2);
+        expect(result.items).toEqual(mockHistory);
+        expect(result.items.length).toBe(2);
+        expect(result.nextCursor).toBeNull();
       });
 
-      it("should return empty array for user with no history", async () => {
+      it("should return empty items for user with no history", async () => {
         const { getUserStatusHistory } = await import("./session");
 
         const selectMock = vi.fn().mockReturnValue({
           from: vi.fn().mockReturnValue({
             where: vi.fn().mockReturnValue({
-              orderBy: vi.fn().mockResolvedValue([]),
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue([]),
+              }),
             }),
           }),
         });
@@ -804,7 +809,64 @@ describe("session", () => {
 
         const result = await getUserStatusHistory(mockDb, "new-user");
 
-        expect(result).toEqual([]);
+        expect(result.items).toEqual([]);
+        expect(result.nextCursor).toBeNull();
+      });
+
+      it("should return nextCursor when more items exist", async () => {
+        const { getUserStatusHistory } = await import("./session");
+
+        // Mock returns 3 items when limit is 2 (fetchLimit = limit + 1)
+        const mockHistory = [
+          {
+            id: "history-1",
+            previousStatus: "active",
+            newStatus: "banned",
+            reason: "Spam",
+            changedBy: "admin-123",
+            changedAt: "2024-01-01T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+          {
+            id: "history-2",
+            previousStatus: "banned",
+            newStatus: "active",
+            reason: "Appeal accepted",
+            changedBy: "admin-123",
+            changedAt: "2024-01-02T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+          {
+            id: "history-3",
+            previousStatus: "active",
+            newStatus: "suspended",
+            reason: "Violation",
+            changedBy: "admin-123",
+            changedAt: "2024-01-03T00:00:00Z",
+            ipAddress: "192.168.1.1",
+          },
+        ];
+
+        const selectMock = vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockResolvedValue(mockHistory),
+              }),
+            }),
+          }),
+        });
+
+        const mockDb = {
+          select: selectMock,
+        } as unknown as Database;
+
+        const result = await getUserStatusHistory(mockDb, "user-123", {
+          limit: 2,
+        });
+
+        expect(result.items.length).toBe(2);
+        expect(result.nextCursor).toBe("history-2");
       });
     });
 

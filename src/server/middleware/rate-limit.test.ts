@@ -4,18 +4,18 @@
  * Tests for path matching, rate limit checking, and KV operations.
  */
 
-import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { Context } from "hono";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  matchPath,
-  findMatchingRule,
-  generateRateLimitKey,
-  getClientIp,
   checkRateLimit,
   createMockKV,
   DEFAULT_RATE_LIMIT_RULES,
-  type RateLimitRule,
+  findMatchingRule,
+  generateRateLimitKey,
+  getClientIp,
   type KVNamespace,
+  matchPath,
+  type RateLimitRule,
 } from "./rate-limit";
 
 describe("rate-limit", () => {
@@ -31,8 +31,12 @@ describe("rate-limit", () => {
     });
 
     it("should match single segment wildcard (*)", () => {
-      expect(matchPath("/api/bonsai/*/images", "/api/bonsai/123/images")).toBe(true);
-      expect(matchPath("/api/bonsai/*/images", "/api/bonsai/abc-def/images")).toBe(true);
+      expect(matchPath("/api/bonsai/*/images", "/api/bonsai/123/images")).toBe(
+        true
+      );
+      expect(
+        matchPath("/api/bonsai/*/images", "/api/bonsai/abc-def/images")
+      ).toBe(true);
       expect(matchPath("/api/auth/*", "/api/auth/login")).toBe(true);
       expect(matchPath("/api/auth/*", "/api/auth/logout")).toBe(true);
     });
@@ -44,6 +48,36 @@ describe("rate-limit", () => {
     it("should match wildcards at different positions", () => {
       expect(matchPath("/api/*/comments", "/api/bonsai/comments")).toBe(true);
       expect(matchPath("/*/*/likes", "/api/bonsai/likes")).toBe(true);
+    });
+
+    it("should match multi-segment wildcard (**)", () => {
+      expect(matchPath("/api/**", "/api/users")).toBe(true);
+      expect(matchPath("/api/**", "/api/users/123")).toBe(true);
+      expect(matchPath("/api/**", "/api/users/123/follow")).toBe(true);
+      expect(matchPath("/api/**", "/api/bonsai/456/images/789")).toBe(true);
+    });
+
+    it("should match ** at specific positions", () => {
+      expect(matchPath("/api/admin/**", "/api/admin/users")).toBe(true);
+      expect(matchPath("/api/admin/**", "/api/admin/users/123/ban")).toBe(true);
+      expect(matchPath("/api/admin/**", "/api/admin/users/123/history")).toBe(
+        true
+      );
+    });
+
+    it("should not match ** across path prefix", () => {
+      expect(matchPath("/api/admin/**", "/api/users/123")).toBe(false);
+      expect(matchPath("/api/**", "/other/path")).toBe(false);
+    });
+
+    it("should mix * and ** patterns correctly", () => {
+      expect(matchPath("/api/*/images/**", "/api/bonsai/images/123")).toBe(
+        true
+      );
+      expect(
+        matchPath("/api/*/images/**", "/api/bonsai/images/123/thumbnail")
+      ).toBe(true);
+      expect(matchPath("/api/*/images/**", "/api/users/images")).toBe(false); // ** needs at least one segment
     });
   });
 
@@ -61,7 +95,7 @@ describe("rate-limit", () => {
       },
       {
         method: "*",
-        pattern: "/api/*",
+        pattern: "/api/**",
         config: { maxRequests: 100, windowSeconds: 3600, keyPrefix: "default" },
       },
     ];
@@ -73,25 +107,41 @@ describe("rate-limit", () => {
     });
 
     it("should find wildcard matching rule", () => {
-      const rule = findMatchingRule("POST", "/api/bonsai/123/images", testRules);
+      const rule = findMatchingRule(
+        "POST",
+        "/api/bonsai/123/images",
+        testRules
+      );
       expect(rule).not.toBeNull();
       expect(rule?.config.keyPrefix).toBe("img");
     });
 
     it("should return first matching rule (most specific first)", () => {
-      // auth/* should match before generic api/*
+      // auth/* should match before generic api/**
       const rule = findMatchingRule("POST", "/api/auth/callback", testRules);
       expect(rule?.config.keyPrefix).toBe("auth");
     });
 
     it("should match by method", () => {
-      // GET /api/auth/me should not match POST-only auth rule
-      // Note: /api/* only matches single segment, so /api/auth/me won't match
+      // GET /api/auth/me should not match POST-only auth rule, but should match ** default
       const rule = findMatchingRule("GET", "/api/auth/me", testRules);
-      expect(rule).toBeNull();
+      expect(rule?.config.keyPrefix).toBe("default");
 
       // GET /api/users should match the wildcard method rule
       const rule2 = findMatchingRule("GET", "/api/users", testRules);
+      expect(rule2?.config.keyPrefix).toBe("default");
+    });
+
+    it("should match nested paths with ** pattern", () => {
+      // Nested paths should match the ** default rule
+      const rule = findMatchingRule("PATCH", "/api/bonsai/123", testRules);
+      expect(rule?.config.keyPrefix).toBe("default");
+
+      const rule2 = findMatchingRule(
+        "POST",
+        "/api/users/456/follow",
+        testRules
+      );
       expect(rule2?.config.keyPrefix).toBe("default");
     });
 
@@ -314,15 +364,15 @@ describe("rate-limit", () => {
       expect(bonsaiRule?.config.maxRequests).toBe(30);
     });
 
-    it("should have default fallback rules", () => {
+    it("should have default fallback rules with ** pattern", () => {
       const postRule = DEFAULT_RATE_LIMIT_RULES.find(
-        (r) => r.pattern === "/api/*" && r.method === "POST"
+        (r) => r.pattern === "/api/**" && r.method === "POST"
       );
       const patchRule = DEFAULT_RATE_LIMIT_RULES.find(
-        (r) => r.pattern === "/api/*" && r.method === "PATCH"
+        (r) => r.pattern === "/api/**" && r.method === "PATCH"
       );
       const deleteRule = DEFAULT_RATE_LIMIT_RULES.find(
-        (r) => r.pattern === "/api/*" && r.method === "DELETE"
+        (r) => r.pattern === "/api/**" && r.method === "DELETE"
       );
 
       expect(postRule).toBeDefined();

@@ -53,6 +53,11 @@ const moderationActionSchema = z.object({
     .optional(),
 });
 
+const historyQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  cursor: z.string().optional(),
+});
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -96,6 +101,7 @@ interface StatusHistoryResponse {
   userId: string;
   currentStatus: string;
   history: StatusHistoryEntry[];
+  nextCursor: string | null;
 }
 
 // ============================================================================
@@ -286,10 +292,7 @@ admin.post("/users/:id/ban", async (c) => {
     );
 
     if (!result.success) {
-      return c.json(
-        { error: "Failed to ban user", code: "BAN_FAILED" },
-        500
-      );
+      return c.json({ error: "Failed to ban user", code: "BAN_FAILED" }, 500);
     }
 
     const response: ModerationActionResponse = {
@@ -570,7 +573,25 @@ admin.get("/users/:id/history", async (c) => {
     );
   }
 
+  // Validate query parameters
+  const queryResult = historyQuerySchema.safeParse({
+    limit: c.req.query("limit"),
+    cursor: c.req.query("cursor"),
+  });
+
+  if (!queryResult.success) {
+    return c.json(
+      {
+        error: "Invalid query parameters",
+        code: "VALIDATION_ERROR",
+        details: z.treeifyError(queryResult.error),
+      },
+      400
+    );
+  }
+
   const targetUserId = paramResult.data.id;
+  const { limit, cursor } = queryResult.data;
 
   try {
     // Get user's current status
@@ -584,12 +605,17 @@ admin.get("/users/:id/history", async (c) => {
       return c.json({ error: "User not found", code: "USER_NOT_FOUND" }, 404);
     }
 
-    // Get status history
-    const history = await getUserStatusHistory(db, targetUserId);
+    // Get status history with pagination
+    const historyResult = await getUserStatusHistory(db, targetUserId, {
+      limit,
+      cursor,
+    });
 
     // Enrich history with admin names (batch query for efficiency)
     const adminIds = [
-      ...new Set(history.filter((h) => h.changedBy).map((h) => h.changedBy!)),
+      ...new Set(
+        historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
+      ),
     ];
     const adminNames = new Map<string, string>();
 
@@ -609,20 +635,25 @@ admin.get("/users/:id/history", async (c) => {
       }
     }
 
-    const enrichedHistory: StatusHistoryEntry[] = history.map((entry) => ({
-      id: entry.id,
-      previousStatus: entry.previousStatus,
-      newStatus: entry.newStatus,
-      reason: entry.reason,
-      changedBy: entry.changedBy,
-      changedByName: entry.changedBy ? adminNames.get(entry.changedBy) || null : null,
-      changedAt: entry.changedAt,
-    }));
+    const enrichedHistory: StatusHistoryEntry[] = historyResult.items.map(
+      (entry) => ({
+        id: entry.id,
+        previousStatus: entry.previousStatus,
+        newStatus: entry.newStatus,
+        reason: entry.reason,
+        changedBy: entry.changedBy,
+        changedByName: entry.changedBy
+          ? adminNames.get(entry.changedBy) || null
+          : null,
+        changedAt: entry.changedAt,
+      })
+    );
 
     const response: StatusHistoryResponse = {
       userId: targetUserId,
       currentStatus: targetUser.status as string,
       history: enrichedHistory,
+      nextCursor: historyResult.nextCursor,
     };
 
     return c.json(response, 200);

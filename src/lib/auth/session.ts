@@ -9,8 +9,8 @@ import { and, eq, gt, isNull, lt } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type * as schema from "../db/schema";
 import {
-  type UserStatus,
   sessions,
+  type UserStatus,
   userStatusHistory,
   users,
 } from "../db/schema";
@@ -417,13 +417,22 @@ export async function unbanUser(
 }
 
 /**
- * Get a user's status change history
+ * Options for paginated status history
+ */
+export interface GetStatusHistoryOptions {
+  limit?: number;
+  cursor?: string; // ID of the last item from the previous page
+}
+
+/**
+ * Get a user's status change history with pagination
  */
 export async function getUserStatusHistory(
   db: Database,
-  userId: string
-): Promise<
-  Array<{
+  userId: string,
+  options: GetStatusHistoryOptions = {}
+): Promise<{
+  items: Array<{
     id: string;
     previousStatus: string;
     newStatus: string;
@@ -431,9 +440,13 @@ export async function getUserStatusHistory(
     changedBy: string | null;
     changedAt: string;
     ipAddress: string | null;
-  }>
-> {
-  const result = await db
+  }>;
+  nextCursor: string | null;
+}> {
+  const limit = options.limit ?? 50; // Default to 50 items
+  const fetchLimit = limit + 1; // Fetch one extra to determine if there's more
+
+  let query = db
     .select({
       id: userStatusHistory.id,
       previousStatus: userStatusHistory.previousStatus,
@@ -445,9 +458,50 @@ export async function getUserStatusHistory(
     })
     .from(userStatusHistory)
     .where(eq(userStatusHistory.userId, userId))
-    .orderBy(userStatusHistory.changedAt);
+    .orderBy(userStatusHistory.changedAt)
+    .limit(fetchLimit);
 
-  return result;
+  // If cursor is provided, we need to fetch items after that cursor
+  // For simplicity, we'll use offset-based approach with cursor being the last ID
+  if (options.cursor) {
+    // Get the changedAt for the cursor item to use as reference
+    const cursorItem = await db
+      .select({ changedAt: userStatusHistory.changedAt })
+      .from(userStatusHistory)
+      .where(eq(userStatusHistory.id, options.cursor))
+      .limit(1);
+
+    if (cursorItem.length > 0) {
+      query = db
+        .select({
+          id: userStatusHistory.id,
+          previousStatus: userStatusHistory.previousStatus,
+          newStatus: userStatusHistory.newStatus,
+          reason: userStatusHistory.reason,
+          changedBy: userStatusHistory.changedBy,
+          changedAt: userStatusHistory.changedAt,
+          ipAddress: userStatusHistory.ipAddress,
+        })
+        .from(userStatusHistory)
+        .where(
+          and(
+            eq(userStatusHistory.userId, userId),
+            gt(userStatusHistory.changedAt, cursorItem[0].changedAt)
+          )
+        )
+        .orderBy(userStatusHistory.changedAt)
+        .limit(fetchLimit);
+    }
+  }
+
+  const result = await query;
+
+  // Check if there are more items
+  const hasMore = result.length > limit;
+  const items = hasMore ? result.slice(0, limit) : result;
+  const nextCursor = hasMore ? items[items.length - 1].id : null;
+
+  return { items, nextCursor };
 }
 
 /**

@@ -6,12 +6,13 @@
  */
 import AdminLayout from "@/layouts/AdminLayout.astro";
 import { UserManagement } from "@/components/admin/UserManagement";
-import { getAdminAuthData } from "@/lib/auth/server";
+import { getCsrfToken } from "@/lib/auth/server";
 
-// Get admin auth data for CSRF token and current user
-const { user, csrfToken } = await getAdminAuthData(Astro);
+// Get user from middleware locals and CSRF token from cookies
+const user = Astro.locals.user!;
+const csrfToken = getCsrfToken(Astro.request);
 ---
 
 <AdminLayout title="ユーザー管理 | 管理画面">
-  <UserManagement client:load currentUserId={user!.id} csrfToken={csrfToken} />
+  <UserManagement client:load currentUserId={user.id} csrfToken={csrfToken} />
 </AdminLayout>

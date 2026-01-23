@@ -7,10 +7,10 @@
  */
 import AdminLayout from "@/layouts/AdminLayout.astro";
 import { Dashboard } from "@/components/admin/Dashboard";
-import { getAdminAuthData } from "@/lib/auth/server";
+import { getCsrfToken } from "@/lib/auth/server";
 
-// Get admin auth data for CSRF token
-const { csrfToken } = await getAdminAuthData(Astro);
+// Get CSRF token from cookies (user auth handled by middleware)
+const csrfToken = getCsrfToken(Astro.request);
 ---
 
 <AdminLayout title="ダッシュボード | 管理画面">

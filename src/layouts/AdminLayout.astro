@@ -3,11 +3,10 @@
  * Admin Layout
  *
  * Layout for admin dashboard pages.
- * Requires admin authentication - redirects to home if not admin.
+ * Authentication is handled by middleware - user data is available in Astro.locals.
  */
 import BaseLayout from "./BaseLayout.astro";
 import { AdminLayoutClient } from "@/components/admin/AdminLayoutClient";
-import { getAdminAuthData } from "@/lib/auth/server";
 
 interface Props {
   title?: string;
@@ -16,18 +15,8 @@ interface Props {
 
 const { title = "管理画面", description = "盆栽帳 管理画面" } = Astro.props;
 
-// Check admin authentication
-const { user, isAdmin, csrfToken } = await getAdminAuthData(Astro);
-
-// Redirect if not authenticated
-if (!user) {
-  return Astro.redirect("/login?redirect=/manage");
-}
-
-// Redirect if not admin
-if (!isAdmin) {
-  return Astro.redirect("/");
-}
+// User is guaranteed to exist here (middleware redirects if not authenticated/admin)
+const user = Astro.locals.user!;
 
 const currentPath = Astro.url.pathname;
 

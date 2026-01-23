@@ -187,7 +187,9 @@ adminSettings.put("/:key", async (c) => {
   }
 
   const { value } = bodyResult.data;
-  const ipAddress = getClientIp(c);
+  const ipAddressRaw = getClientIp(c);
+  // Normalize "unknown" to null for cleaner audit logs
+  const ipAddress = ipAddressRaw === "unknown" ? null : ipAddressRaw;
 
   try {
     const result = await updateSetting(db, key, value, adminUserId, ipAddress);

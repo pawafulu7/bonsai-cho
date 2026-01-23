@@ -149,7 +149,6 @@ admin.use("*", async (c, next) => {
 
 admin.post("/users/:id/ban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -218,12 +217,18 @@ admin.post("/users/:id/ban", async (c) => {
       );
     }
 
-    // Ban the user (using admin user ID for audit trail)
+    // Ban the user
+    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
+    // and include admin info in the reason for audit trail
+    const adminUserName = c.get("adminUserName");
+    const auditReason = reason
+      ? `[Admin: ${adminUserName}] ${reason}`
+      : `[Admin: ${adminUserName}]`;
     const result = await banUser(
       db,
       targetUserId,
-      reason,
-      adminUserId,
+      auditReason,
+      undefined, // changedBy is null for admin operations (FK constraint references users.id)
       ipAddress
     );
 
@@ -252,7 +257,6 @@ admin.post("/users/:id/ban", async (c) => {
 
 admin.post("/users/:id/suspend", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -321,12 +325,17 @@ admin.post("/users/:id/suspend", async (c) => {
       );
     }
 
-    // Suspend the user (using admin user ID for audit trail)
+    // Suspend the user
+    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
+    const adminUserName = c.get("adminUserName");
+    const auditReason = reason
+      ? `[Admin: ${adminUserName}] ${reason}`
+      : `[Admin: ${adminUserName}]`;
     const result = await suspendUser(
       db,
       targetUserId,
-      reason,
-      adminUserId,
+      auditReason,
+      undefined, // changedBy is null for admin operations
       ipAddress
     );
 
@@ -361,7 +370,6 @@ admin.post("/users/:id/suspend", async (c) => {
 
 admin.post("/users/:id/unban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -430,12 +438,17 @@ admin.post("/users/:id/unban", async (c) => {
       );
     }
 
-    // Unban the user (using admin user ID for audit trail)
+    // Unban the user
+    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
+    const adminUserName = c.get("adminUserName");
+    const auditReason = reason
+      ? `[Admin: ${adminUserName}] ${reason}`
+      : `[Admin: ${adminUserName}]`;
     const result = await unbanUser(
       db,
       targetUserId,
-      reason,
-      adminUserId,
+      auditReason,
+      undefined, // changedBy is null for admin operations
       ipAddress
     );
 

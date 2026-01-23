@@ -21,8 +21,23 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Validate returnTo to prevent open redirect attacks
-  const safeReturnTo = returnTo.startsWith("/manage") ? returnTo : "/manage";
+  // Validate returnTo to prevent open redirect attacks (including path traversal)
+  const getSafeReturnTo = (url: string): string => {
+    try {
+      const resolved = new URL(url, window.location.origin);
+      // Check if the resolved pathname starts with /manage and same origin
+      if (
+        resolved.pathname.startsWith("/manage") &&
+        resolved.origin === window.location.origin
+      ) {
+        return resolved.pathname + resolved.search + resolved.hash;
+      }
+    } catch {
+      // Invalid URL
+    }
+    return "/manage";
+  };
+  const safeReturnTo = getSafeReturnTo(returnTo);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,7 +71,9 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
             break;
           case "ACCOUNT_LOCKED":
             setError(
-              `アカウントがロックされています。${data.lockoutRemaining}分後に再試行してください`
+              data.lockoutRemaining
+                ? `アカウントがロックされています。${data.lockoutRemaining}分後に再試行してください`
+                : "アカウントがロックされています。しばらくしてから再試行してください"
             );
             break;
           case "ACCOUNT_DISABLED":
@@ -85,7 +102,10 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+        >
           <AlertCircle className="h-4 w-4 flex-shrink-0" />
           <span>{error}</span>
         </div>

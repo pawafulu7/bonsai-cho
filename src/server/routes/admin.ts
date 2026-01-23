@@ -217,8 +217,19 @@ admin.post("/users/:id/ban", async (c) => {
       );
     }
 
-    // Ban the user with admin user ID for proper audit trail
+    // Prevent admin from banning themselves
     const adminUserId = c.get("adminUserId");
+    if (targetUserId === adminUserId) {
+      return c.json(
+        {
+          error: "Cannot ban yourself",
+          code: "SELF_ACTION_NOT_ALLOWED",
+        },
+        400
+      );
+    }
+
+    // Ban the user with admin user ID for proper audit trail
     const result = await banUser(db, targetUserId, {
       reason,
       adminChangedByUserId: adminUserId,
@@ -318,8 +329,19 @@ admin.post("/users/:id/suspend", async (c) => {
       );
     }
 
-    // Suspend the user with admin user ID for proper audit trail
+    // Prevent admin from suspending themselves
     const adminUserId = c.get("adminUserId");
+    if (targetUserId === adminUserId) {
+      return c.json(
+        {
+          error: "Cannot suspend yourself",
+          code: "SELF_ACTION_NOT_ALLOWED",
+        },
+        400
+      );
+    }
+
+    // Suspend the user with admin user ID for proper audit trail
     const result = await suspendUser(db, targetUserId, {
       reason,
       adminChangedByUserId: adminUserId,

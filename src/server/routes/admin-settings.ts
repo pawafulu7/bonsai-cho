@@ -1,9 +1,11 @@
 /**
  * Admin Settings API Routes
  *
- * GET /api/admin/settings - Get all settings
- * PUT /api/admin/settings/:key - Update a setting
- * GET /api/admin/audit-logs - Get audit logs
+ * This router is mounted at /api/admin/settings
+ *
+ * GET / - Get all settings
+ * PUT /:key - Update a setting
+ * GET /audit-logs - Get audit logs
  */
 
 import { Hono } from "hono";

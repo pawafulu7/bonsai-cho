@@ -40,7 +40,7 @@ type Variables = {
 // ============================================================================
 
 const settingKeySchema = z.object({
-  key: z.string().refine((key) => key in DEFAULT_SETTINGS, {
+  key: z.string().refine((key) => Object.hasOwn(DEFAULT_SETTINGS, key), {
     message: "Invalid setting key",
   }),
 });

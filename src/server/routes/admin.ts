@@ -217,20 +217,13 @@ admin.post("/users/:id/ban", async (c) => {
       );
     }
 
-    // Ban the user
-    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
-    // and include admin info in the reason for audit trail
-    const adminUserName = c.get("adminUserName");
-    const auditReason = reason
-      ? `[Admin: ${adminUserName}] ${reason}`
-      : `[Admin: ${adminUserName}]`;
-    const result = await banUser(
-      db,
-      targetUserId,
-      auditReason,
-      undefined, // changedBy is null for admin operations (FK constraint references users.id)
-      ipAddress
-    );
+    // Ban the user with admin user ID for proper audit trail
+    const adminUserId = c.get("adminUserId");
+    const result = await banUser(db, targetUserId, {
+      reason,
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json({ error: "Failed to ban user", code: "BAN_FAILED" }, 500);
@@ -325,19 +318,13 @@ admin.post("/users/:id/suspend", async (c) => {
       );
     }
 
-    // Suspend the user
-    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
-    const adminUserName = c.get("adminUserName");
-    const auditReason = reason
-      ? `[Admin: ${adminUserName}] ${reason}`
-      : `[Admin: ${adminUserName}]`;
-    const result = await suspendUser(
-      db,
-      targetUserId,
-      auditReason,
-      undefined, // changedBy is null for admin operations
-      ipAddress
-    );
+    // Suspend the user with admin user ID for proper audit trail
+    const adminUserId = c.get("adminUserId");
+    const result = await suspendUser(db, targetUserId, {
+      reason,
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json(
@@ -438,19 +425,13 @@ admin.post("/users/:id/unban", async (c) => {
       );
     }
 
-    // Unban the user
-    // Note: changedBy uses users.id FK constraint, so we pass undefined for admin operations
-    const adminUserName = c.get("adminUserName");
-    const auditReason = reason
-      ? `[Admin: ${adminUserName}] ${reason}`
-      : `[Admin: ${adminUserName}]`;
-    const result = await unbanUser(
-      db,
-      targetUserId,
-      auditReason,
-      undefined, // changedBy is null for admin operations
-      ipAddress
-    );
+    // Unban the user with admin user ID for proper audit trail
+    const adminUserId = c.get("adminUserId");
+    const result = await unbanUser(db, targetUserId, {
+      reason,
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json(
@@ -538,39 +519,67 @@ admin.get("/users/:id/history", async (c) => {
       cursor,
     });
 
-    // Enrich history with admin names (batch query for efficiency)
-    // Note: changedBy now contains admin user IDs from admin_users table
-    const changedByIds = [
+    // Enrich history with names (batch query for efficiency)
+    // Get admin names for admin-initiated changes
+    const adminChangedByIds = [
       ...new Set(
-        historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
+        historyResult.items
+          .filter((h) => h.adminChangedBy)
+          .map((h) => h.adminChangedBy!)
       ),
     ];
     const adminNames = new Map<string, string>();
 
-    if (changedByIds.length > 0) {
-      // Get names from admin_users table
+    if (adminChangedByIds.length > 0) {
       const admins = await db
         .select({ id: schema.adminUsers.id, name: schema.adminUsers.name })
         .from(schema.adminUsers)
-        .where(inArray(schema.adminUsers.id, changedByIds));
+        .where(inArray(schema.adminUsers.id, adminChangedByIds));
 
       for (const admin of admins) {
         adminNames.set(admin.id, admin.name);
       }
     }
 
+    // Get user names for user-initiated changes
+    const userChangedByIds = [
+      ...new Set(
+        historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
+      ),
+    ];
+    const userNames = new Map<string, string>();
+
+    if (userChangedByIds.length > 0) {
+      const changedByUsers = await db
+        .select({ id: schema.users.id, name: schema.users.name })
+        .from(schema.users)
+        .where(inArray(schema.users.id, userChangedByIds));
+
+      for (const user of changedByUsers) {
+        userNames.set(user.id, user.name || "Unknown");
+      }
+    }
+
     const enrichedHistory: StatusHistoryEntry[] = historyResult.items.map(
-      (entry) => ({
-        id: entry.id,
-        previousStatus: entry.previousStatus,
-        newStatus: entry.newStatus,
-        reason: entry.reason,
-        changedBy: entry.changedBy,
-        changedByName: entry.changedBy
-          ? adminNames.get(entry.changedBy) || null
-          : null,
-        changedAt: entry.changedAt,
-      })
+      (entry) => {
+        // Prefer admin name if admin-initiated, otherwise use user name
+        let changedByName: string | null = null;
+        if (entry.adminChangedBy) {
+          changedByName = adminNames.get(entry.adminChangedBy) || null;
+        } else if (entry.changedBy) {
+          changedByName = userNames.get(entry.changedBy) || null;
+        }
+
+        return {
+          id: entry.id,
+          previousStatus: entry.previousStatus,
+          newStatus: entry.newStatus,
+          reason: entry.reason,
+          changedBy: entry.adminChangedBy || entry.changedBy,
+          changedByName,
+          changedAt: entry.changedAt,
+        };
+      }
     );
 
     const response: StatusHistoryResponse = {

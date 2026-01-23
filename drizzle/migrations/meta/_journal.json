@@ -43,6 +43,13 @@
       "when": 1769131777870,
       "tag": "0005_amazing_maginty",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1769173683307,
+      "tag": "0006_absent_vapor",
+      "breakpoints": true
     }
   ]
 }

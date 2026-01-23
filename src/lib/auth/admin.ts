@@ -6,9 +6,9 @@
  */
 
 import {
+  type Database as AdminDatabase,
   parseAdminSessionCookie,
   validateAdminSession,
-  type Database as AdminDatabase,
 } from "./admin-session";
 import { parseCsrfCookie, validateCsrfToken } from "./csrf";
 

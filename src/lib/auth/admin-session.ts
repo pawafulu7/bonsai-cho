@@ -14,7 +14,13 @@ import { and, eq, gt, lt } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type * as schema from "../db/schema";
 import { adminSessions, adminUsers } from "../db/schema";
-import { base64urlDecode, base64urlEncode, generateId, generateSessionId, sha256Hash } from "./crypto";
+import {
+  base64urlDecode,
+  base64urlEncode,
+  generateId,
+  generateSessionId,
+  sha256Hash,
+} from "./crypto";
 
 // Session configuration - shorter lifetime for admin security
 const ADMIN_SESSION_HOURS = 4;
@@ -190,8 +196,14 @@ export async function authenticateAdmin(
   // Check if account is locked
   if (adminUser.lockedUntil && adminUser.lockedUntil > now) {
     const lockoutEnd = new Date(adminUser.lockedUntil);
-    const remaining = Math.ceil((lockoutEnd.getTime() - Date.now()) / (60 * 1000));
-    return { success: false, error: "ACCOUNT_LOCKED", lockoutRemaining: remaining };
+    const remaining = Math.ceil(
+      (lockoutEnd.getTime() - Date.now()) / (60 * 1000)
+    );
+    return {
+      success: false,
+      error: "ACCOUNT_LOCKED",
+      lockoutRemaining: remaining,
+    };
   }
 
   // Verify password
@@ -203,7 +215,9 @@ export async function authenticateAdmin(
     const shouldLock = newFailedAttempts >= MAX_FAILED_ATTEMPTS;
 
     const lockoutExpiry = shouldLock
-      ? new Date(Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000).toISOString()
+      ? new Date(
+          Date.now() + LOCKOUT_DURATION_MINUTES * 60 * 1000
+        ).toISOString()
       : null;
 
     await db

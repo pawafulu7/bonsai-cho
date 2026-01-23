@@ -11,9 +11,9 @@ import { z } from "zod";
 
 import {
   authenticateAdmin,
+  clearAdminSessionCookie,
   createAdminSession,
   createAdminSessionCookie,
-  clearAdminSessionCookie,
   invalidateAdminSession,
   parseAdminSessionCookie,
   validateAdminSession,
@@ -213,10 +213,7 @@ adminAuth.get("/me", async (c) => {
   const sessionToken = parseAdminSessionCookie(cookieHeader);
 
   if (!sessionToken) {
-    return c.json(
-      { error: "Not authenticated", code: "UNAUTHORIZED" },
-      401
-    );
+    return c.json({ error: "Not authenticated", code: "UNAUTHORIZED" }, 401);
   }
 
   try {

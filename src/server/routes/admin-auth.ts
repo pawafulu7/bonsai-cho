@@ -39,7 +39,7 @@ type Variables = {
 // ============================================================================
 
 const loginSchema = z.object({
-  email: z.string().email("有効なメールアドレスを入力してください"),
+  email: z.email("有効なメールアドレスを入力してください"),
   password: z.string().min(1, "パスワードを入力してください"),
 });
 
@@ -185,7 +185,7 @@ adminAuth.post("/login", async (c) => {
 
 adminAuth.post("/logout", async (c) => {
   const db = c.get("db");
-  const cookieHeader = c.req.header("Cookie");
+  const cookieHeader = c.req.header("Cookie") ?? null;
   const sessionToken = parseAdminSessionCookie(cookieHeader);
 
   if (sessionToken) {
@@ -209,7 +209,7 @@ adminAuth.post("/logout", async (c) => {
 
 adminAuth.get("/me", async (c) => {
   const db = c.get("db");
-  const cookieHeader = c.req.header("Cookie");
+  const cookieHeader = c.req.header("Cookie") ?? null;
   const sessionToken = parseAdminSessionCookie(cookieHeader);
 
   if (!sessionToken) {

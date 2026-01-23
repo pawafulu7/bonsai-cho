@@ -70,13 +70,7 @@ adminStats.use("*", async (c, next) => {
 
   if (!authResult.success) {
     return c.json(
-      {
-        error: authResult.error,
-        code: authResult.code,
-        ...(authResult.code === "FORBIDDEN" && {
-          message: "Admin privileges required",
-        }),
-      },
+      { error: authResult.error, code: authResult.code },
       authResult.status
     );
   }

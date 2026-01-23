@@ -21,6 +21,9 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Validate returnTo to prevent open redirect attacks
+  const safeReturnTo = returnTo.startsWith("/manage") ? returnTo : "/manage";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -36,7 +39,14 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      let data: { code?: string; error?: string; lockoutRemaining?: number };
+      try {
+        data = await response.json();
+      } catch {
+        setError("サーバーからの応答が不正です。再度お試しください。");
+        setIsLoading(false);
+        return;
+      }
 
       if (!response.ok) {
         // Handle error response
@@ -63,8 +73,8 @@ export function AdminLoginForm({ returnTo = "/manage" }: AdminLoginFormProps) {
         return;
       }
 
-      // Success - redirect to return URL
-      window.location.href = returnTo;
+      // Success - redirect to safe return URL
+      window.location.href = safeReturnTo;
     } catch (err) {
       console.error("Login error:", err);
       setError("ネットワークエラーが発生しました。再度お試しください。");

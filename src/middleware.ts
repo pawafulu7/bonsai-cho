@@ -8,6 +8,7 @@
 
 import { defineMiddleware } from "astro:middleware";
 import {
+  type Database,
   parseAdminSessionCookie,
   validateAdminSession,
 } from "@/lib/auth/admin-session";
@@ -38,12 +39,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   // Validate admin session using cached DB connection
-  const db = await getDb(
+  const db: Database = await getDb(
     import.meta.env.TURSO_DATABASE_URL,
     import.meta.env.TURSO_AUTH_TOKEN
   );
 
-  const result = await validateAdminSession(db as never, sessionToken);
+  const result = await validateAdminSession(db, sessionToken);
 
   // Redirect to admin login if session is invalid
   if (!result) {

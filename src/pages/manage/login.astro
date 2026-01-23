@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/card";
 
 // Get return URL from query params
-const returnTo = Astro.url.searchParams.get("returnTo") || "/manage";
+// Validate returnTo to prevent open redirect attacks
+const rawReturnTo = Astro.url.searchParams.get("returnTo") || "/manage";
+const returnTo = rawReturnTo.startsWith("/manage") ? rawReturnTo : "/manage";
 ---
 
 <BaseLayout title="管理者ログイン" description="Bonsai-Cho 管理画面ログイン">

@@ -11,10 +11,12 @@
  */
 
 import { createClient } from "@libsql/client";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { createInterface } from "readline";
-import * as schema from "../src/lib/db/schema/index.ts";
+import { generateId } from "../src/lib/auth/crypto.ts";
 import { hashPassword } from "../src/lib/auth/admin-session.ts";
+import * as schema from "../src/lib/db/schema/index.ts";
 
 const rl = createInterface({
   input: process.stdin,
@@ -26,8 +28,14 @@ function question(query: string): Promise<string> {
 }
 
 async function main() {
+  // Validate environment variables
+  if (!process.env.TURSO_DATABASE_URL) {
+    console.error("Error: TURSO_DATABASE_URL environment variable is required");
+    process.exit(1);
+  }
+
   const client = createClient({
-    url: process.env.TURSO_DATABASE_URL!,
+    url: process.env.TURSO_DATABASE_URL,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
 
@@ -55,12 +63,7 @@ async function main() {
   const existing = await db
     .select({ id: schema.adminUsers.id })
     .from(schema.adminUsers)
-    .where(
-      (() => {
-        const { eq } = require("drizzle-orm");
-        return eq(schema.adminUsers.email, email.toLowerCase().trim());
-      })()
-    )
+    .where(eq(schema.adminUsers.email, email.toLowerCase().trim()))
     .limit(1);
 
   if (existing.length > 0) {
@@ -71,7 +74,7 @@ async function main() {
 
   // Create admin user
   const passwordHash = await hashPassword(password);
-  const id = crypto.randomUUID().replace(/-/g, "").slice(0, 22);
+  const id = generateId();
 
   await db.insert(schema.adminUsers).values({
     id,

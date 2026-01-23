@@ -35,12 +35,13 @@ const PBKDF2_KEY_LENGTH = 32; // 256 bits
 const SALT_LENGTH = 16; // 128 bits
 
 // Cookie configuration for admin sessions
+// __Host- prefix requires Path=/ (cannot be restricted to /manage)
 export const ADMIN_SESSION_COOKIE_NAME = "__Host-admin_session";
 export const ADMIN_SESSION_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: true,
   sameSite: "strict" as const, // Stricter than regular sessions
-  path: "/manage",
+  path: "/", // Required for __Host- prefix
   maxAge: 60 * 60 * ADMIN_SESSION_HOURS,
 };
 
@@ -425,7 +426,7 @@ export function createAdminSessionCookie(token: string): string {
  * Create a Set-Cookie header value to clear the admin session
  */
 export function clearAdminSessionCookie(): string {
-  return `${ADMIN_SESSION_COOKIE_NAME}=; Path=/manage; Max-Age=0; HttpOnly; Secure; SameSite=strict`;
+  return `${ADMIN_SESSION_COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=strict`;
 }
 
 // ============================================================================

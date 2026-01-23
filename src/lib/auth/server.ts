@@ -2,6 +2,8 @@
  * Server-side authentication utilities for Astro
  *
  * Used to get the current user in Astro components and API routes.
+ * Note: Admin authentication is handled separately by middleware
+ * and admin data is available via Astro.locals.adminUser.
  */
 
 import { createClient } from "@libsql/client";
@@ -81,4 +83,34 @@ export async function getAuthData(astro: AstroGlobal): Promise<{
   const csrfToken = getCsrfToken(astro.request);
 
   return { user, csrfToken };
+}
+
+/**
+ * @deprecated Admin authentication is now handled by separate middleware.
+ * Admin user data is available via Astro.locals.adminUser in /manage routes.
+ * CSRF token is available via getCsrfToken().
+ *
+ * For admin pages:
+ * - Middleware automatically checks admin session
+ * - Admin user data: Astro.locals.adminUser
+ * - isAdmin: Astro.locals.isAdmin
+ *
+ * This function is kept for backward compatibility but may be removed in future versions.
+ */
+export async function getAdminAuthData(astro: AstroGlobal): Promise<{
+  user: SessionUser | null;
+  isAdmin: boolean;
+  csrfToken: string | null;
+}> {
+  const csrfToken = getCsrfToken(astro.request);
+
+  // Admin auth is now separate - check Astro.locals.adminUser
+  // This function can only check regular user auth
+  const { user } = await getAuthData(astro);
+
+  return {
+    user,
+    isAdmin: false, // Regular users can't be admins anymore
+    csrfToken,
+  };
 }

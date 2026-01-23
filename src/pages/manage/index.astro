@@ -1,0 +1,18 @@
+---
+/**
+ * Admin Dashboard Page
+ *
+ * Main entry point for the admin dashboard.
+ * Displays platform statistics and recent activity.
+ */
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { Dashboard } from "@/components/admin/Dashboard";
+import { getCsrfToken } from "@/lib/auth/server";
+
+// Get CSRF token from cookies (user auth handled by middleware)
+const csrfToken = getCsrfToken(Astro.request);
+---
+
+<AdminLayout title="ダッシュボード | 管理画面">
+  <Dashboard client:load csrfToken={csrfToken} />
+</AdminLayout>

@@ -7,6 +7,10 @@ import type { R2BucketBinding } from "@/lib/storage/r2";
 import type { KVNamespace } from "./middleware/rate-limit";
 import { rateLimiter } from "./middleware/rate-limit";
 import adminRoutes from "./routes/admin";
+import adminAuthRoutes from "./routes/admin-auth";
+import adminSettingsRoutes from "./routes/admin-settings";
+import adminStatsRoutes from "./routes/admin-stats";
+import adminUsersRoutes from "./routes/admin-users";
 import authRoutes from "./routes/auth";
 import bonsaiRoutes from "./routes/bonsai";
 import careLogsRoutes from "./routes/care-logs";
@@ -158,8 +162,20 @@ api.route("/users", followsRoutes);
 // User profile routes
 api.route("/users", usersRoutes);
 
+// Admin authentication routes (login/logout)
+api.route("/admin/auth", adminAuthRoutes);
+
 // Admin routes (moderation)
 api.route("/admin", adminRoutes);
+
+// Admin stats routes
+api.route("/admin", adminStatsRoutes);
+
+// Admin users routes
+api.route("/admin/users", adminUsersRoutes);
+
+// Admin settings routes
+api.route("/admin/settings", adminSettingsRoutes);
 
 // 404 handler
 app.notFound((c) => {

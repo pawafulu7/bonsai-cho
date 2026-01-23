@@ -644,7 +644,10 @@ describe("session", () => {
           delete: deleteMock,
         });
 
-        const result = await banUser(mockDb, "user-123", "Spam", "admin-456");
+        const result = await banUser(mockDb, "user-123", {
+          reason: "Spam",
+          adminChangedByUserId: "admin-456",
+        });
 
         expect(result.previousStatus).toBe("active");
         expect(result.success).toBe(true);
@@ -684,12 +687,10 @@ describe("session", () => {
           delete: deleteMock,
         });
 
-        const result = await suspendUser(
-          mockDb,
-          "user-123",
-          "Temporary issue",
-          "admin-456"
-        );
+        const result = await suspendUser(mockDb, "user-123", {
+          reason: "Temporary issue",
+          adminChangedByUserId: "admin-456",
+        });
 
         expect(result.previousStatus).toBe("active");
         expect(result.success).toBe(true);
@@ -724,7 +725,9 @@ describe("session", () => {
           insert: insertMock,
         });
 
-        const result = await unbanUser(mockDb, "user-123", "Appeal accepted");
+        const result = await unbanUser(mockDb, "user-123", {
+          reason: "Appeal accepted",
+        });
 
         expect(result.previousStatus).toBe("banned");
         expect(result.success).toBe(true);

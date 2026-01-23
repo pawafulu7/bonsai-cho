@@ -1,0 +1,1 @@
+ALTER TABLE `user_status_history` ADD `admin_changed_by` text REFERENCES admin_users(id) ON DELETE SET NULL;

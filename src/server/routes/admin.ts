@@ -8,35 +8,20 @@
  * GET /api/admin/users/:id/history - Get user status history
  */
 
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import { parseCsrfCookie, validateCsrfToken } from "@/lib/auth/csrf";
+import { validateAdminAuth, validateAdminCsrf } from "@/lib/auth/admin";
 import {
   banUser,
   getUserStatusHistory,
-  parseSessionCookie,
   suspendUser,
   unbanUser,
-  validateSession,
 } from "@/lib/auth/session";
 import { type Database, getDb } from "@/lib/db/client";
 import * as schema from "@/lib/db/schema";
 import { getClientIp } from "../middleware/rate-limit";
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-/**
- * Temporary admin user IDs (hardcoded for Phase 1)
- * TODO: Replace with proper role-based access control in Phase 2
- */
-const ADMIN_USER_IDS: string[] = [
-  // Add admin user IDs here when needed
-  // Example: "user_abc123xyz"
-];
 
 // ============================================================================
 // Validation Schemas
@@ -65,13 +50,12 @@ const historyQuerySchema = z.object({
 type Bindings = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL: string;
-  SESSION_SECRET: string;
 };
 
 type Variables = {
   db: Database;
-  userId: string;
+  adminUserId: string;
+  adminUserName: string;
   isAdmin: boolean;
 };
 
@@ -105,17 +89,6 @@ interface StatusHistoryResponse {
 }
 
 // ============================================================================
-// Helper Functions
-// ============================================================================
-
-/**
- * Check if a user ID is an admin
- */
-function isAdminUser(userId: string): boolean {
-  return ADMIN_USER_IDS.includes(userId);
-}
-
-// ============================================================================
 // Hono App
 // ============================================================================
 
@@ -135,31 +108,19 @@ admin.use("*", async (c, next) => {
 // Authentication middleware - requires admin privileges
 admin.use("*", async (c, next) => {
   const db = c.get("db");
-  const cookieHeader = c.req.header("Cookie") || "";
-  const sessionToken = parseSessionCookie(cookieHeader);
+  const cookieHeader = c.req.header("Cookie");
 
-  if (!sessionToken) {
-    return c.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
-  }
+  const authResult = await validateAdminAuth(db, cookieHeader);
 
-  const result = await validateSession(db, sessionToken);
-  if (!result) {
-    return c.json({ error: "Unauthorized", code: "UNAUTHORIZED" }, 401);
-  }
-
-  // Check admin privileges
-  if (!isAdminUser(result.user.id)) {
+  if (!authResult.success) {
     return c.json(
-      {
-        error: "Forbidden",
-        code: "FORBIDDEN",
-        message: "Admin privileges required",
-      },
-      403
+      { error: authResult.error, code: authResult.code },
+      authResult.status
     );
   }
 
-  c.set("userId", result.user.id);
+  c.set("adminUserId", authResult.adminUserId);
+  c.set("adminUserName", authResult.adminUserName);
   c.set("isAdmin", true);
   await next();
 });
@@ -171,15 +132,12 @@ admin.use("*", async (c, next) => {
     return next();
   }
 
-  const cookieHeader = c.req.header("Cookie") || "";
-  const csrfCookie = parseCsrfCookie(cookieHeader);
-  const csrfHeader = c.req.header("X-CSRF-Token") ?? null;
+  const cookieHeader = c.req.header("Cookie");
+  const csrfHeader = c.req.header("X-CSRF-Token");
 
-  if (!validateCsrfToken(csrfCookie, csrfHeader)) {
-    return c.json(
-      { error: "Invalid CSRF token", code: "CSRF_VALIDATION_FAILED" },
-      403
-    );
+  const csrfError = validateAdminCsrf(cookieHeader, csrfHeader);
+  if (csrfError) {
+    return c.json(csrfError, 403);
   }
 
   return next();
@@ -191,7 +149,6 @@ admin.use("*", async (c, next) => {
 
 admin.post("/users/:id/ban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -210,28 +167,6 @@ admin.post("/users/:id/ban", async (c) => {
   }
 
   const targetUserId = paramResult.data.id;
-
-  // Prevent self-ban
-  if (targetUserId === adminUserId) {
-    return c.json(
-      {
-        error: "Cannot ban yourself",
-        code: "SELF_ACTION_FORBIDDEN",
-      },
-      400
-    );
-  }
-
-  // Prevent banning other admins
-  if (isAdminUser(targetUserId)) {
-    return c.json(
-      {
-        error: "Cannot ban another admin",
-        code: "ADMIN_PROTECTED",
-      },
-      403
-    );
-  }
 
   // Parse request body
   let body: unknown = {};
@@ -282,14 +217,24 @@ admin.post("/users/:id/ban", async (c) => {
       );
     }
 
-    // Ban the user
-    const result = await banUser(
-      db,
-      targetUserId,
+    // Prevent admin from banning themselves
+    const adminUserId = c.get("adminUserId");
+    if (targetUserId === adminUserId) {
+      return c.json(
+        {
+          error: "Cannot ban yourself",
+          code: "SELF_ACTION_NOT_ALLOWED",
+        },
+        400
+      );
+    }
+
+    // Ban the user with admin user ID for proper audit trail
+    const result = await banUser(db, targetUserId, {
       reason,
-      adminUserId,
-      ipAddress
-    );
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json({ error: "Failed to ban user", code: "BAN_FAILED" }, 500);
@@ -316,7 +261,6 @@ admin.post("/users/:id/ban", async (c) => {
 
 admin.post("/users/:id/suspend", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -335,28 +279,6 @@ admin.post("/users/:id/suspend", async (c) => {
   }
 
   const targetUserId = paramResult.data.id;
-
-  // Prevent self-suspend
-  if (targetUserId === adminUserId) {
-    return c.json(
-      {
-        error: "Cannot suspend yourself",
-        code: "SELF_ACTION_FORBIDDEN",
-      },
-      400
-    );
-  }
-
-  // Prevent suspending other admins
-  if (isAdminUser(targetUserId)) {
-    return c.json(
-      {
-        error: "Cannot suspend another admin",
-        code: "ADMIN_PROTECTED",
-      },
-      403
-    );
-  }
 
   // Parse request body
   let body: unknown = {};
@@ -407,14 +329,24 @@ admin.post("/users/:id/suspend", async (c) => {
       );
     }
 
-    // Suspend the user
-    const result = await suspendUser(
-      db,
-      targetUserId,
+    // Prevent admin from suspending themselves
+    const adminUserId = c.get("adminUserId");
+    if (targetUserId === adminUserId) {
+      return c.json(
+        {
+          error: "Cannot suspend yourself",
+          code: "SELF_ACTION_NOT_ALLOWED",
+        },
+        400
+      );
+    }
+
+    // Suspend the user with admin user ID for proper audit trail
+    const result = await suspendUser(db, targetUserId, {
       reason,
-      adminUserId,
-      ipAddress
-    );
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json(
@@ -447,7 +379,6 @@ admin.post("/users/:id/suspend", async (c) => {
 
 admin.post("/users/:id/unban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -516,14 +447,13 @@ admin.post("/users/:id/unban", async (c) => {
       );
     }
 
-    // Unban the user
-    const result = await unbanUser(
-      db,
-      targetUserId,
+    // Unban the user with admin user ID for proper audit trail
+    const adminUserId = c.get("adminUserId");
+    const result = await unbanUser(db, targetUserId, {
       reason,
-      adminUserId,
-      ipAddress
-    );
+      adminChangedByUserId: adminUserId,
+      ipAddress,
+    });
 
     if (!result.success) {
       return c.json(
@@ -611,42 +541,67 @@ admin.get("/users/:id/history", async (c) => {
       cursor,
     });
 
-    // Enrich history with admin names (batch query for efficiency)
-    const adminIds = [
+    // Enrich history with names (batch query for efficiency)
+    // Get admin names for admin-initiated changes
+    const adminChangedByIds = [
       ...new Set(
-        historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
+        historyResult.items
+          .filter((h) => h.adminChangedBy)
+          .map((h) => h.adminChangedBy!)
       ),
     ];
     const adminNames = new Map<string, string>();
 
-    if (adminIds.length > 0) {
+    if (adminChangedByIds.length > 0) {
       const admins = await db
-        .select({ id: schema.users.id, name: schema.users.name })
-        .from(schema.users)
-        .where(
-          and(
-            inArray(schema.users.id, adminIds),
-            isNull(schema.users.deletedAt)
-          )
-        );
+        .select({ id: schema.adminUsers.id, name: schema.adminUsers.name })
+        .from(schema.adminUsers)
+        .where(inArray(schema.adminUsers.id, adminChangedByIds));
 
       for (const admin of admins) {
         adminNames.set(admin.id, admin.name);
       }
     }
 
+    // Get user names for user-initiated changes
+    const userChangedByIds = [
+      ...new Set(
+        historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
+      ),
+    ];
+    const userNames = new Map<string, string>();
+
+    if (userChangedByIds.length > 0) {
+      const changedByUsers = await db
+        .select({ id: schema.users.id, name: schema.users.name })
+        .from(schema.users)
+        .where(inArray(schema.users.id, userChangedByIds));
+
+      for (const user of changedByUsers) {
+        userNames.set(user.id, user.name || "Unknown");
+      }
+    }
+
     const enrichedHistory: StatusHistoryEntry[] = historyResult.items.map(
-      (entry) => ({
-        id: entry.id,
-        previousStatus: entry.previousStatus,
-        newStatus: entry.newStatus,
-        reason: entry.reason,
-        changedBy: entry.changedBy,
-        changedByName: entry.changedBy
-          ? adminNames.get(entry.changedBy) || null
-          : null,
-        changedAt: entry.changedAt,
-      })
+      (entry) => {
+        // Prefer admin name if admin-initiated, otherwise use user name
+        let changedByName: string | null = null;
+        if (entry.adminChangedBy) {
+          changedByName = adminNames.get(entry.adminChangedBy) || null;
+        } else if (entry.changedBy) {
+          changedByName = userNames.get(entry.changedBy) || null;
+        }
+
+        return {
+          id: entry.id,
+          previousStatus: entry.previousStatus,
+          newStatus: entry.newStatus,
+          reason: entry.reason,
+          changedBy: entry.adminChangedBy || entry.changedBy,
+          changedByName,
+          changedAt: entry.changedAt,
+        };
+      }
     );
 
     const response: StatusHistoryResponse = {

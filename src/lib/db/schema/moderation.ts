@@ -1,5 +1,6 @@
 import { relations, sql } from "drizzle-orm";
 import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { adminUsers } from "./admin";
 import { users } from "./users";
 
 /**
@@ -19,7 +20,12 @@ export const userStatusHistory = sqliteTable(
     previousStatus: text("previous_status").notNull(),
     newStatus: text("new_status").notNull(),
     reason: text("reason"),
+    /** User who changed the status (for user-initiated changes) */
     changedBy: text("changed_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    /** Admin who changed the status (for admin-initiated changes) */
+    adminChangedBy: text("admin_changed_by").references(() => adminUsers.id, {
       onDelete: "set null",
     }),
     changedAt: text("changed_at").notNull().default(sql`(datetime('now'))`),
@@ -47,6 +53,10 @@ export const userStatusHistoryRelations = relations(
     changedByUser: one(users, {
       fields: [userStatusHistory.changedBy],
       references: [users.id],
+    }),
+    adminChangedByUser: one(adminUsers, {
+      fields: [userStatusHistory.adminChangedBy],
+      references: [adminUsers.id],
     }),
   })
 );

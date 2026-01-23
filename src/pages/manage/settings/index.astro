@@ -1,0 +1,17 @@
+---
+/**
+ * Settings Management Page
+ *
+ * Admin page for managing system settings and viewing audit logs.
+ */
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { SettingsPage } from "@/components/admin/SettingsPage";
+import { getCsrfToken } from "@/lib/auth/server";
+
+// Get CSRF token from cookies (user auth handled by middleware)
+const csrfToken = getCsrfToken(Astro.request);
+---
+
+<AdminLayout title="設定 | 管理画面">
+  <SettingsPage client:load csrfToken={csrfToken} />
+</AdminLayout>

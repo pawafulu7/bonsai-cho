@@ -1,5 +1,18 @@
 // User and Session
 
+// Admin Authentication
+export type {
+  AdminSession,
+  AdminUser,
+  NewAdminSession,
+  NewAdminUser,
+} from "./admin";
+export {
+  adminSessions,
+  adminSessionsRelations,
+  adminUsers,
+  adminUsersRelations,
+} from "./admin";
 // OAuth Authentication
 export type {
   NewOAuthAccount,
@@ -34,6 +47,21 @@ export type {
   UserStatusHistoryRecord,
 } from "./moderation";
 export { userStatusHistory, userStatusHistoryRelations } from "./moderation";
+// System Settings and Audit Logs
+export type {
+  AuditAction,
+  AuditLog,
+  AuditTargetType,
+  NewAuditLog,
+  NewSystemSetting,
+  SystemSetting,
+} from "./settings";
+export {
+  auditLogs,
+  auditLogsRelations,
+  systemSettings,
+  systemSettingsRelations,
+} from "./settings";
 // Social Features (likes, comments, follows)
 export {
   comments,

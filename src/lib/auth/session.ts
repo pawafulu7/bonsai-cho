@@ -298,7 +298,10 @@ export interface ChangeUserStatusOptions {
   targetUserId: string;
   newStatus: UserStatus;
   reason?: string;
+  /** User ID who changed the status (for user-initiated changes) */
   changedByUserId?: string;
+  /** Admin user ID who changed the status (for admin-initiated changes) */
+  adminChangedByUserId?: string;
   ipAddress?: string;
 }
 
@@ -314,8 +317,14 @@ export async function changeUserStatus(
   db: Database,
   options: ChangeUserStatusOptions
 ): Promise<{ previousStatus: UserStatus; success: boolean }> {
-  const { targetUserId, newStatus, reason, changedByUserId, ipAddress } =
-    options;
+  const {
+    targetUserId,
+    newStatus,
+    reason,
+    changedByUserId,
+    adminChangedByUserId,
+    ipAddress,
+  } = options;
   const now = new Date().toISOString();
 
   // Pre-compute IP hash outside transaction to avoid async issues
@@ -373,6 +382,7 @@ export async function changeUserStatus(
       newStatus,
       reason: reason ?? null,
       changedBy: changedByUserId ?? null,
+      adminChangedBy: adminChangedByUserId ?? null,
       changedAt: now,
       ipAddress: ipAddressHash,
     });
@@ -386,6 +396,16 @@ export async function changeUserStatus(
   });
 }
 
+/** Options for moderation actions */
+export interface ModerationActionOptions {
+  reason?: string;
+  /** User ID who performed the action (for user-initiated changes) */
+  changedByUserId?: string;
+  /** Admin user ID who performed the action (for admin-initiated changes) */
+  adminChangedByUserId?: string;
+  ipAddress?: string;
+}
+
 /**
  * Ban a user - permanently restricts access
  * Invalidates all active sessions immediately.
@@ -393,16 +413,15 @@ export async function changeUserStatus(
 export async function banUser(
   db: Database,
   targetUserId: string,
-  reason?: string,
-  changedByUserId?: string,
-  ipAddress?: string
+  options: ModerationActionOptions = {}
 ): Promise<{ previousStatus: UserStatus; success: boolean }> {
   return changeUserStatus(db, {
     targetUserId,
     newStatus: "banned",
-    reason,
-    changedByUserId,
-    ipAddress,
+    reason: options.reason,
+    changedByUserId: options.changedByUserId,
+    adminChangedByUserId: options.adminChangedByUserId,
+    ipAddress: options.ipAddress,
   });
 }
 
@@ -413,16 +432,15 @@ export async function banUser(
 export async function suspendUser(
   db: Database,
   targetUserId: string,
-  reason?: string,
-  changedByUserId?: string,
-  ipAddress?: string
+  options: ModerationActionOptions = {}
 ): Promise<{ previousStatus: UserStatus; success: boolean }> {
   return changeUserStatus(db, {
     targetUserId,
     newStatus: "suspended",
-    reason,
-    changedByUserId,
-    ipAddress,
+    reason: options.reason,
+    changedByUserId: options.changedByUserId,
+    adminChangedByUserId: options.adminChangedByUserId,
+    ipAddress: options.ipAddress,
   });
 }
 
@@ -432,16 +450,15 @@ export async function suspendUser(
 export async function unbanUser(
   db: Database,
   targetUserId: string,
-  reason?: string,
-  changedByUserId?: string,
-  ipAddress?: string
+  options: ModerationActionOptions = {}
 ): Promise<{ previousStatus: UserStatus; success: boolean }> {
   return changeUserStatus(db, {
     targetUserId,
     newStatus: "active",
-    reason,
-    changedByUserId,
-    ipAddress,
+    reason: options.reason,
+    changedByUserId: options.changedByUserId,
+    adminChangedByUserId: options.adminChangedByUserId,
+    ipAddress: options.ipAddress,
   });
 }
 
@@ -470,6 +487,7 @@ export async function getUserStatusHistory(
     newStatus: string;
     reason: string | null;
     changedBy: string | null;
+    adminChangedBy: string | null;
     changedAt: string;
     ipAddress: string | null;
   }>;
@@ -487,6 +505,7 @@ export async function getUserStatusHistory(
       newStatus: userStatusHistory.newStatus,
       reason: userStatusHistory.reason,
       changedBy: userStatusHistory.changedBy,
+      adminChangedBy: userStatusHistory.adminChangedBy,
       changedAt: userStatusHistory.changedAt,
       ipAddress: userStatusHistory.ipAddress,
     })
@@ -528,6 +547,7 @@ export async function getUserStatusHistory(
         newStatus: userStatusHistory.newStatus,
         reason: userStatusHistory.reason,
         changedBy: userStatusHistory.changedBy,
+        adminChangedBy: userStatusHistory.adminChangedBy,
         changedAt: userStatusHistory.changedAt,
         ipAddress: userStatusHistory.ipAddress,
       })

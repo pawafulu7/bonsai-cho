@@ -3,7 +3,7 @@
  * Admin Layout
  *
  * Layout for admin dashboard pages.
- * Authentication is handled by middleware - user data is available in Astro.locals.
+ * Authentication is handled by middleware - admin user data is available in Astro.locals.
  */
 import BaseLayout from "./BaseLayout.astro";
 import { AdminLayoutClient } from "@/components/admin/AdminLayoutClient";
@@ -15,17 +15,17 @@ interface Props {
 
 const { title = "管理画面", description = "盆栽帳 管理画面" } = Astro.props;
 
-// User is guaranteed to exist here (middleware redirects if not authenticated/admin)
-const user = Astro.locals.user!;
+// Admin user is guaranteed to exist here (middleware redirects if not authenticated)
+const admin = Astro.locals.adminUser!;
 
 const currentPath = Astro.url.pathname;
 
 // Create user object for client component
 const adminUser = {
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  avatarUrl: user.avatarUrl,
+  id: admin.id,
+  name: admin.name,
+  email: admin.email,
+  avatarUrl: null, // Admin users don't have avatars (password-based auth)
 };
 ---
 

@@ -8,15 +8,11 @@
  * GET /api/admin/users/:id/history - Get user status history
  */
 
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 
-import {
-  isProtectedAdmin,
-  validateAdminAuth,
-  validateAdminCsrf,
-} from "@/lib/auth/admin";
+import { validateAdminAuth, validateAdminCsrf } from "@/lib/auth/admin";
 import {
   banUser,
   getUserStatusHistory,
@@ -54,14 +50,12 @@ const historyQuerySchema = z.object({
 type Bindings = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL: string;
-  SESSION_SECRET: string;
-  ADMIN_USER_IDS?: string;
 };
 
 type Variables = {
   db: Database;
-  userId: string;
+  adminUserId: string;
+  adminUserName: string;
   isAdmin: boolean;
 };
 
@@ -116,11 +110,7 @@ admin.use("*", async (c, next) => {
   const db = c.get("db");
   const cookieHeader = c.req.header("Cookie");
 
-  const authResult = await validateAdminAuth(
-    db,
-    cookieHeader,
-    c.env.ADMIN_USER_IDS
-  );
+  const authResult = await validateAdminAuth(db, cookieHeader);
 
   if (!authResult.success) {
     return c.json(
@@ -135,7 +125,8 @@ admin.use("*", async (c, next) => {
     );
   }
 
-  c.set("userId", authResult.userId);
+  c.set("adminUserId", authResult.adminUserId);
+  c.set("adminUserName", authResult.adminUserName);
   c.set("isAdmin", true);
   await next();
 });
@@ -164,7 +155,7 @@ admin.use("*", async (c, next) => {
 
 admin.post("/users/:id/ban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
+  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -183,28 +174,6 @@ admin.post("/users/:id/ban", async (c) => {
   }
 
   const targetUserId = paramResult.data.id;
-
-  // Prevent self-ban
-  if (targetUserId === adminUserId) {
-    return c.json(
-      {
-        error: "Cannot ban yourself",
-        code: "SELF_ACTION_FORBIDDEN",
-      },
-      400
-    );
-  }
-
-  // Prevent banning other admins
-  if (isProtectedAdmin(targetUserId, c.env.ADMIN_USER_IDS)) {
-    return c.json(
-      {
-        error: "Cannot ban another admin",
-        code: "ADMIN_PROTECTED",
-      },
-      403
-    );
-  }
 
   // Parse request body
   let body: unknown = {};
@@ -255,7 +224,7 @@ admin.post("/users/:id/ban", async (c) => {
       );
     }
 
-    // Ban the user
+    // Ban the user (using admin user ID for audit trail)
     const result = await banUser(
       db,
       targetUserId,
@@ -289,7 +258,7 @@ admin.post("/users/:id/ban", async (c) => {
 
 admin.post("/users/:id/suspend", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
+  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -308,28 +277,6 @@ admin.post("/users/:id/suspend", async (c) => {
   }
 
   const targetUserId = paramResult.data.id;
-
-  // Prevent self-suspend
-  if (targetUserId === adminUserId) {
-    return c.json(
-      {
-        error: "Cannot suspend yourself",
-        code: "SELF_ACTION_FORBIDDEN",
-      },
-      400
-    );
-  }
-
-  // Prevent suspending other admins
-  if (isProtectedAdmin(targetUserId, c.env.ADMIN_USER_IDS)) {
-    return c.json(
-      {
-        error: "Cannot suspend another admin",
-        code: "ADMIN_PROTECTED",
-      },
-      403
-    );
-  }
 
   // Parse request body
   let body: unknown = {};
@@ -380,7 +327,7 @@ admin.post("/users/:id/suspend", async (c) => {
       );
     }
 
-    // Suspend the user
+    // Suspend the user (using admin user ID for audit trail)
     const result = await suspendUser(
       db,
       targetUserId,
@@ -420,7 +367,7 @@ admin.post("/users/:id/suspend", async (c) => {
 
 admin.post("/users/:id/unban", async (c) => {
   const db = c.get("db");
-  const adminUserId = c.get("userId");
+  const adminUserId = c.get("adminUserId");
 
   // Validate user ID parameter
   const paramResult = userIdParamSchema.safeParse({
@@ -489,7 +436,7 @@ admin.post("/users/:id/unban", async (c) => {
       );
     }
 
-    // Unban the user
+    // Unban the user (using admin user ID for audit trail)
     const result = await unbanUser(
       db,
       targetUserId,
@@ -585,23 +532,20 @@ admin.get("/users/:id/history", async (c) => {
     });
 
     // Enrich history with admin names (batch query for efficiency)
-    const adminIds = [
+    // Note: changedBy now contains admin user IDs from admin_users table
+    const changedByIds = [
       ...new Set(
         historyResult.items.filter((h) => h.changedBy).map((h) => h.changedBy!)
       ),
     ];
     const adminNames = new Map<string, string>();
 
-    if (adminIds.length > 0) {
+    if (changedByIds.length > 0) {
+      // Get names from admin_users table
       const admins = await db
-        .select({ id: schema.users.id, name: schema.users.name })
-        .from(schema.users)
-        .where(
-          and(
-            inArray(schema.users.id, adminIds),
-            isNull(schema.users.deletedAt)
-          )
-        );
+        .select({ id: schema.adminUsers.id, name: schema.adminUsers.name })
+        .from(schema.adminUsers)
+        .where(inArray(schema.adminUsers.id, changedByIds));
 
       for (const admin of admins) {
         adminNames.set(admin.id, admin.name);

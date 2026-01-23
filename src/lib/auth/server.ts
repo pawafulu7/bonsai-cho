@@ -2,13 +2,14 @@
  * Server-side authentication utilities for Astro
  *
  * Used to get the current user in Astro components and API routes.
+ * Note: Admin authentication is handled separately by middleware
+ * and admin data is available via Astro.locals.adminUser.
  */
 
 import { createClient } from "@libsql/client";
 import type { AstroGlobal } from "astro";
 import { drizzle } from "drizzle-orm/libsql";
 import * as schema from "@/lib/db/schema";
-import { isAdminUser } from "./admin";
 import { parseCsrfCookie } from "./csrf";
 import {
   parseSessionCookie,
@@ -85,35 +86,31 @@ export async function getAuthData(astro: AstroGlobal): Promise<{
 }
 
 /**
- * Get admin auth data for use in admin Astro components
+ * @deprecated Admin authentication is now handled by separate middleware.
+ * Admin user data is available via Astro.locals.adminUser in /manage routes.
+ * CSRF token is available via getCsrfToken().
  *
- * Returns user, isAdmin flag, and csrfToken
- * If not authenticated or not admin, returns appropriate flags
+ * For admin pages:
+ * - Middleware automatically checks admin session
+ * - Admin user data: Astro.locals.adminUser
+ * - isAdmin: Astro.locals.isAdmin
  *
- * Usage in .astro files:
- * ```astro
- * ---
- * import { getAdminAuthData } from "@/lib/auth/server";
- * const { user, isAdmin, csrfToken } = await getAdminAuthData(Astro);
- * if (!isAdmin) {
- *   return Astro.redirect("/");
- * }
- * ---
- * ```
+ * This function is kept for backward compatibility but may be removed in future versions.
  */
 export async function getAdminAuthData(astro: AstroGlobal): Promise<{
   user: SessionUser | null;
   isAdmin: boolean;
   csrfToken: string | null;
 }> {
-  const { user, csrfToken } = await getAuthData(astro);
+  const csrfToken = getCsrfToken(astro.request);
 
-  if (!user) {
-    return { user: null, isAdmin: false, csrfToken };
-  }
+  // Admin auth is now separate - check Astro.locals.adminUser
+  // This function can only check regular user auth
+  const { user } = await getAuthData(astro);
 
-  const adminUserIdsEnv = import.meta.env.ADMIN_USER_IDS;
-  const isAdmin = isAdminUser(user.id, adminUserIdsEnv);
-
-  return { user, isAdmin, csrfToken };
+  return {
+    user,
+    isAdmin: false, // Regular users can't be admins anymore
+    csrfToken,
+  };
 }

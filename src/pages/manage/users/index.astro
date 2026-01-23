@@ -8,11 +8,16 @@ import AdminLayout from "@/layouts/AdminLayout.astro";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { getCsrfToken } from "@/lib/auth/server";
 
-// Get user from middleware locals and CSRF token from cookies
-const user = Astro.locals.user!;
+// Get admin user from middleware locals and CSRF token from cookies
+const adminUser = Astro.locals.adminUser;
 const csrfToken = getCsrfToken(Astro.request);
+
+// Middleware handles auth redirect, but ensure adminUser exists for type safety
+if (!adminUser) {
+  return Astro.redirect("/manage/login?returnTo=/manage/users");
+}
 ---
 
 <AdminLayout title="ユーザー管理 | 管理画面">
-  <UserManagement client:load currentUserId={user.id} csrfToken={csrfToken} />
+  <UserManagement client:load currentUserId={adminUser.id} csrfToken={csrfToken} />
 </AdminLayout>

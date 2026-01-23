@@ -2,43 +2,27 @@
  * Admin authentication utilities
  *
  * Provides functions for admin user validation and authentication.
- * Admin user IDs are configured via environment variables for security.
+ * Admin users are stored in the admin_users table with password authentication.
  */
 
+import {
+  parseAdminSessionCookie,
+  validateAdminSession,
+  type Database as AdminDatabase,
+} from "./admin-session";
 import { parseCsrfCookie, validateCsrfToken } from "./csrf";
-import { type Database, parseSessionCookie, validateSession } from "./session";
 
-/**
- * Parse admin user IDs from environment variable
- *
- * Environment variable format: comma-separated list of user IDs
- * Example: "user_abc123,user_xyz789"
- */
-export function getAdminUserIds(adminUserIdsEnv: string | undefined): string[] {
-  if (!adminUserIdsEnv) return [];
-  return adminUserIdsEnv
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
-}
-
-/**
- * Check if a user ID is an admin
- */
-export function isAdminUser(
-  userId: string,
-  adminUserIdsEnv: string | undefined
-): boolean {
-  const adminIds = getAdminUserIds(adminUserIdsEnv);
-  return adminIds.includes(userId);
-}
+// Re-export types from admin-session for convenience
+export type { AdminSessionUser } from "./admin-session";
 
 /**
  * Admin authentication result
  */
 export interface AdminAuthResult {
   success: true;
-  userId: string;
+  adminUserId: string;
+  adminUserName: string;
+  adminUserEmail: string;
   isAdmin: true;
 }
 
@@ -55,17 +39,16 @@ export type AdminAuthResponse = AdminAuthResult | AdminAuthError;
  * Validate admin authentication from request context
  *
  * This function checks:
- * 1. Session token exists and is valid
- * 2. User has admin privileges
+ * 1. Admin session token exists and is valid
+ * 2. Admin user is active
  *
- * Use this in API routes and page server-side code.
+ * Use this in API routes that require admin privileges.
  */
 export async function validateAdminAuth(
-  db: Database,
-  cookieHeader: string | undefined,
-  adminUserIdsEnv: string | undefined
+  db: AdminDatabase,
+  cookieHeader: string | undefined
 ): Promise<AdminAuthResponse> {
-  const sessionToken = parseSessionCookie(cookieHeader || "");
+  const sessionToken = parseAdminSessionCookie(cookieHeader || "");
 
   if (!sessionToken) {
     return {
@@ -76,7 +59,7 @@ export async function validateAdminAuth(
     };
   }
 
-  const result = await validateSession(db, sessionToken);
+  const result = await validateAdminSession(db, sessionToken);
   if (!result) {
     return {
       success: false,
@@ -86,19 +69,21 @@ export async function validateAdminAuth(
     };
   }
 
-  // Check admin privileges
-  if (!isAdminUser(result.user.id, adminUserIdsEnv)) {
+  // Check admin status
+  if (result.user.status !== "active") {
     return {
       success: false,
-      error: "Forbidden",
-      code: "FORBIDDEN",
+      error: "Account disabled",
+      code: "ACCOUNT_DISABLED",
       status: 403,
     };
   }
 
   return {
     success: true,
-    userId: result.user.id,
+    adminUserId: result.user.id,
+    adminUserName: result.user.name,
+    adminUserEmail: result.user.email,
     isAdmin: true,
   };
 }
@@ -122,14 +107,4 @@ export function validateAdminCsrf(
   }
 
   return null;
-}
-
-/**
- * Check if a user is a protected admin (cannot be banned/suspended)
- */
-export function isProtectedAdmin(
-  targetUserId: string,
-  adminUserIdsEnv: string | undefined
-): boolean {
-  return isAdminUser(targetUserId, adminUserIdsEnv);
 }

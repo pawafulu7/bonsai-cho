@@ -19,14 +19,12 @@ import { getAdminStats, getRecentActivity } from "@/lib/db/queries/admin-stats";
 type Bindings = {
   TURSO_DATABASE_URL: string;
   TURSO_AUTH_TOKEN: string;
-  PUBLIC_APP_URL: string;
-  SESSION_SECRET: string;
-  ADMIN_USER_IDS?: string;
 };
 
 type Variables = {
   db: Database;
-  userId: string;
+  adminUserId: string;
+  adminUserName: string;
   isAdmin: boolean;
 };
 
@@ -68,11 +66,7 @@ adminStats.use("*", async (c, next) => {
   const db = c.get("db");
   const cookieHeader = c.req.header("Cookie");
 
-  const authResult = await validateAdminAuth(
-    db,
-    cookieHeader,
-    c.env.ADMIN_USER_IDS
-  );
+  const authResult = await validateAdminAuth(db, cookieHeader);
 
   if (!authResult.success) {
     return c.json(
@@ -87,7 +81,8 @@ adminStats.use("*", async (c, next) => {
     );
   }
 
-  c.set("userId", authResult.userId);
+  c.set("adminUserId", authResult.adminUserId);
+  c.set("adminUserName", authResult.adminUserName);
   c.set("isAdmin", true);
   await next();
 });

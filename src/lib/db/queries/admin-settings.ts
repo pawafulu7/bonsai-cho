@@ -78,7 +78,8 @@ export async function getAllSettings(db: Database): Promise<SettingItem[]> {
         key,
         value: defaultValue.value,
         description: defaultValue.description,
-        updatedAt: new Date().toISOString(),
+        // Use SQLite datetime format (YYYY-MM-DD HH:MM:SS) for consistency
+        updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
         updatedBy: null,
         updatedByName: null,
       });
@@ -121,8 +122,6 @@ export async function updateSetting(
   adminUserId: string,
   ipAddress: string | null
 ): Promise<{ success: boolean; previousValue: string | null }> {
-  const now = new Date().toISOString();
-
   // Use transaction to ensure atomic operation
   return await db.transaction(async (tx) => {
     // Read previous value within transaction to prevent TOCTOU issues
@@ -135,21 +134,21 @@ export async function updateSetting(
     const previousValue =
       existing?.value ?? DEFAULT_SETTINGS[key as SettingKey]?.value ?? null;
 
-    // Upsert the setting
+    // Upsert the setting with SQLite datetime format for consistency
     await tx
       .insert(schema.systemSettings)
       .values({
         key,
         value,
         description: DEFAULT_SETTINGS[key as SettingKey]?.description || null,
-        updatedAt: now,
+        updatedAt: sql`(datetime('now'))`,
         updatedBy: adminUserId,
       })
       .onConflictDoUpdate({
         target: schema.systemSettings.key,
         set: {
           value,
-          updatedAt: now,
+          updatedAt: sql`(datetime('now'))`,
           updatedBy: adminUserId,
         },
       });

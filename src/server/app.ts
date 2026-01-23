@@ -7,6 +7,7 @@ import type { R2BucketBinding } from "@/lib/storage/r2";
 import type { KVNamespace } from "./middleware/rate-limit";
 import { rateLimiter } from "./middleware/rate-limit";
 import adminRoutes from "./routes/admin";
+import adminAuthRoutes from "./routes/admin-auth";
 import adminSettingsRoutes from "./routes/admin-settings";
 import adminStatsRoutes from "./routes/admin-stats";
 import adminUsersRoutes from "./routes/admin-users";
@@ -38,8 +39,6 @@ type Bindings = {
   R2_PUBLIC_URL?: string;
   // KV for Rate Limiting
   RATE_LIMIT_KV?: KVNamespace;
-  // Admin
-  ADMIN_USER_IDS?: string;
 };
 
 // biome-ignore lint/complexity/noBannedTypes: Hono requires this type signature for future variable additions
@@ -162,6 +161,9 @@ api.route("/users", followsRoutes);
 
 // User profile routes
 api.route("/users", usersRoutes);
+
+// Admin authentication routes (login/logout)
+api.route("/admin/auth", adminAuthRoutes);
 
 // Admin routes (moderation)
 api.route("/admin", adminRoutes);

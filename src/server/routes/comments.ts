@@ -402,10 +402,58 @@ comments.post("/:bonsaiId/comments", async (c) => {
     // Update comment count
     await updateCommentCount(db, bonsaiId);
 
+    // Fetch the created comment with user info for response
+    const [createdComment] = await db
+      .select({
+        id: schema.comments.id,
+        userId: schema.comments.userId,
+        content: schema.comments.content,
+        createdAt: schema.comments.createdAt,
+        updatedAt: schema.comments.updatedAt,
+        user: {
+          id: schema.users.id,
+          name: schema.users.name,
+          displayName: schema.users.displayName,
+          avatarUrl: schema.users.avatarUrl,
+          deletedAt: schema.users.deletedAt,
+        },
+      })
+      .from(schema.comments)
+      .innerJoin(schema.users, eq(schema.comments.userId, schema.users.id))
+      .where(eq(schema.comments.id, commentId))
+      .limit(1);
+
+    // Handle case where comment was created but couldn't be fetched
+    if (!createdComment) {
+      console.error(
+        `Comment created (id: ${commentId}) but failed to fetch for response. ` +
+          `bonsaiId: ${bonsaiId}, userId: ${userId}`
+      );
+      // Return minimal success response since the comment WAS created
+      return c.json(
+        {
+          comment: {
+            id: commentId,
+            userId,
+            user: {
+              id: userId,
+              name: "Unknown",
+              displayName: null,
+              avatarUrl: null,
+            },
+            content,
+            createdAt: now,
+            updatedAt: now,
+            isOwner: true,
+          },
+        },
+        201
+      );
+    }
+
     return c.json(
       {
-        id: commentId,
-        message: "Comment added successfully",
+        comment: formatComment(createdComment, userId),
       },
       201
     );
